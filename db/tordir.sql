@@ -221,22 +221,3 @@ CREATE VIEW relay_versions_v AS
     ON DATE(validafter) = relay_statuses_per_day.date
     GROUP BY DATE(validafter), version, count
     ORDER BY DATE(validafter);
-
-
---Materialized views
-
-----Network sizes. Total, 3 months, 1 month----
---CREATE TABLE network_size_total_mv AS
---    SELECT * FROM network_size_v;
---CREATE TABLE network_size_3m_mv AS
---    SELECT * FROM network_size_v WHERE DATE_PART('month', AGE(date)) <= 3;
---CREATE TABLE network_size_1m_mv AS
---    SELECT * FROM network_size_v WHERE DATE_PART('month', AGE(date)) <= 1;
-
-
---CREATE TABLE relay_platforms_mv AS SELECT * FROM relay_playforms_v;
---CREATE TABLE relay_versions_mv AS SELECT * FROM relay_versions_v;
-
---GRANT SELECT ON network_size_mv TO ernie;
---GRANT SELECT ON relay_platforms_mv TO ernie;
---GRANT SELECT ON relay_versions_mv TO ernie;
