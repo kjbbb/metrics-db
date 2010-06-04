@@ -189,6 +189,7 @@ CREATE VIEW network_size_v AS
 
 --Relay platforms
 --TODO more specific string handling
+--TODO account for 'other' platforms
 CREATE VIEW relay_platforms_v AS
     SELECT
         DATE(validafter),
@@ -223,6 +224,7 @@ CREATE VIEW relay_versions_v AS
     ORDER BY DATE(validafter);
 
 --Relay churn histogram
+--TODO fix this.
 CREATE VIEW relay_churn_v AS
     SELECT DATE_TRUNC('month', validafter) AS first_day, descriptor
     FROM statusentry
@@ -246,46 +248,50 @@ CREATE VIEW relay_hist_v AS
     FROM relay_churn_seen_v
     GROUP BY DATE_TRUNC('month', date), descriptor;
 
---Average node life by month
------TODO Pretty sure this is wrong. Is a descriptor valid for only 24hrs?
-CREATE VIEW avg_node_life_v AS
-    SELECT EXTRACT('epoch' FROM AVG(difference.max - difference.min))
-        / 86400 AS avg,
-        DATE_TRUNC('month', validafter) AS day
-        DATE(validafter) AS day
-    FROM statusentry
-    JOIN (select descriptor, MAX(validafter) AS max, min(validafter) as MIN
-        FROM statusentry
-        GROUP BY descriptor) difference
-    ON statusentry.descriptor=difference.descriptor
-    GROUP BY DATE_TRUNC('month', validafter)
+--Avg node uptime in seconds by day (in seconds)
+CREATE VIEW relay_uptime_v AS
+    SELECT (AVG(uptime) / relay_statuses_per_day.count)::INT AS uptime,
+        (STDDEV(uptime) / relay_statuses_per_day.count)::INT AS stddev,
+        DATE(validafter)
+    FROM descriptor_statusentry
+    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+        FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+        GROUP BY DATE(validafter)) relay_statuses_per_day
+    ON DATE(validafter) = relay_statuses_per_day.date
+    WHERE validafter IS NOT NULL
+    GROUP BY DATE(validafter), relay_statuses_per_day.count
+    ORDER BY DATE(validafter);
 
---Avg uptime (node life) by day
---TODO divide by # statusentries per day
-SELECT (AVG(uptime)/3600)::INT/24 AS uptime_days,
-    (STDDEV(uptime)/3600)::INT/24 AS stddev_days,
-    DATE(validafter)
-FROM descriptor_statusentry
-WHERE validafter IS NOT NULL
-GROUP BY DATE(validafter)
-ORDER BY DATE(validafter);
+--Avg node bandwidth by day (in bytes per second)
+CREATE VIEW relay_bandwidth_v AS
+    SELECT (AVG(bandwidthavg)
+            / relay_statuses_per_day.count)::INT AS bwavg,
+        (AVG(bandwidthburst)
+            / relay_statuses_per_day.count)::INT AS bwburst,
+        (AVG(bandwidthobserved)
+            / relay_statuses_per_day.count)::INT AS bwobserved,
+        DATE(validafter)
+    FROM descriptor_statusentry
+    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                GROUP BY DATE(validafter)) relay_statuses_per_day
+    ON DATE(validafter) = relay_statuses_per_day.date
+    WHERE validafter IS NOT NULL
+    GROUP BY DATE(validafter), relay_statuses_per_day.count;
 
---Avg bandwidth per node
---TODO divide by # statusentries per day
-SELECT AVG(bandwidthavg)::INT/24 AS bwavg,
-    AVG(bandwidthburst)::INT/24 AS bwburst,
-    AVG(bandwidthobserved)::INT/24 AS bwobserved,
-    DATE(validafter)
-FROM descriptor_statusentry
-WHERE validafter IS NOT NULL
-GROUP BY DATE(validafter);
-
---Total advertised bandwidth of the network
---TODO divide by # statusentries per day
-SELECT SUM(bandwidthavg)/24 AS bwavg,
-    SUM(bandwidthburst)/24 AS bwburst,
-    SUM(bandwidthobserved)/24 AS bwobserved,
-    DATE(validafter)
-FROM descriptor_statusentry
-WHERE validafter IS NOT NULL
-GROUP BY DATE(validafter);
+--Total advertised bandwidth of the network by day (in bytes per second)
+CREATE VIEW total_bandwidth_v
+    SELECT (SUM(bandwidthavg)
+            / relay_statuses_per_day.count)::BIGINT AS bwavg,
+        (SUM(bandwidthburst)
+            / relay_statuses_per_day.count)::BIGINT AS bwburst,
+        (SUM(bandwidthobserved)
+            / relay_statuses_per_day.count)::BIGINT AS bwobserved,
+        DATE(validafter)
+    FROM descriptor_statusentry
+    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                GROUP BY DATE(validafter)) relay_statuses_per_day
+    ON DATE(validafter) = relay_statuses_per_day.date
+    WHERE validafter IS NOT NULL
+    GROUP BY DATE(validafter), relay_statuses_per_day.count;
