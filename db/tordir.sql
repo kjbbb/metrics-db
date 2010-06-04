@@ -82,8 +82,8 @@ ALTER TABLE ONLY statusentry
 --    ADD CONSTRAINT descriptor_statusentry_pkey PRIMARY KEY (validafter, descriptor);
 
 CREATE INDEX descriptorid ON descriptor USING btree (descriptor);
-CREATE INDEX statusvalidafter ON statusentry USING btree (validafter);
-CREATE INDEX descriptorstatusvalidafter ON descriptor_statusentry USING btree (descriptor, validafter);
+CREATE INDEX statusentryid ON statusentry USING btree (descriptor, validafter);
+CREATE INDEX descriptorstatusid ON descriptor_statusentry USING btree (descriptor, validafter);
 
 CREATE LANGUAGE plpgsql;
 
@@ -189,6 +189,7 @@ CREATE VIEW network_size_v AS
 
 --Relay platforms
 --TODO more specific string handling
+--TODO account for 'other' platforms
 CREATE VIEW relay_platforms_v AS
     SELECT
         DATE(validafter),
@@ -221,3 +222,76 @@ CREATE VIEW relay_versions_v AS
     ON DATE(validafter) = relay_statuses_per_day.date
     GROUP BY DATE(validafter), version, count
     ORDER BY DATE(validafter);
+
+--Relay churn histogram
+--TODO fix this.
+CREATE VIEW relay_churn_v AS
+    SELECT DATE_TRUNC('month', validafter) AS first_day, descriptor
+    FROM statusentry
+    WHERE DATE(validafter) IN (
+        SELECT DATE(MIN(validafter))
+        FROM statusentry
+        WHERE isrunning IS true
+        GROUP BY DATE_TRUNC('month', validafter))
+    AND isrunning IS true
+    GROUP BY DATE_TRUNC('month', validafter), descriptor;
+
+CREATE VIEW relay_churn_seen_v AS
+    SELECT DATE(statusentry.validafter), statusentry.descriptor
+    FROM statusentry, relay_churn_v
+    WHERE DATE_TRUNC('month', statusentry.validafter) = relay_churn_v.first_day
+    AND statusentry.descriptor=relay_churn_v.descriptor
+    GROUP BY DATE(statusentry.validafter), statusentry.descriptor;
+
+CREATE VIEW relay_hist_v AS
+    SELECT COUNT(*) AS days, DATE_TRUNC('month', date) AS month
+    FROM relay_churn_seen_v
+    GROUP BY DATE_TRUNC('month', date), descriptor;
+
+--Avg node uptime in seconds by day (in seconds)
+CREATE VIEW relay_uptime_v AS
+    SELECT (AVG(uptime) / relay_statuses_per_day.count)::INT AS uptime,
+        (STDDEV(uptime) / relay_statuses_per_day.count)::INT AS stddev,
+        DATE(validafter)
+    FROM descriptor_statusentry
+    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+        FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+        GROUP BY DATE(validafter)) relay_statuses_per_day
+    ON DATE(validafter) = relay_statuses_per_day.date
+    WHERE validafter IS NOT NULL
+    GROUP BY DATE(validafter), relay_statuses_per_day.count
+    ORDER BY DATE(validafter);
+
+--Avg node bandwidth by day (in bytes per second)
+CREATE VIEW relay_bandwidth_v AS
+    SELECT (AVG(bandwidthavg)
+            / relay_statuses_per_day.count)::INT AS bwavg,
+        (AVG(bandwidthburst)
+            / relay_statuses_per_day.count)::INT AS bwburst,
+        (AVG(bandwidthobserved)
+            / relay_statuses_per_day.count)::INT AS bwobserved,
+        DATE(validafter)
+    FROM descriptor_statusentry
+    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                GROUP BY DATE(validafter)) relay_statuses_per_day
+    ON DATE(validafter) = relay_statuses_per_day.date
+    WHERE validafter IS NOT NULL
+    GROUP BY DATE(validafter), relay_statuses_per_day.count;
+
+--Total advertised bandwidth of the network by day (in bytes per second)
+CREATE VIEW total_bandwidth_v AS
+    SELECT (SUM(bandwidthavg)
+            / relay_statuses_per_day.count)::BIGINT AS bwavg,
+        (SUM(bandwidthburst)
+            / relay_statuses_per_day.count)::BIGINT AS bwburst,
+        (SUM(bandwidthobserved)
+            / relay_statuses_per_day.count)::BIGINT AS bwobserved,
+        DATE(validafter)
+    FROM descriptor_statusentry
+    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                GROUP BY DATE(validafter)) relay_statuses_per_day
+    ON DATE(validafter) = relay_statuses_per_day.date
+    WHERE validafter IS NOT NULL
+    GROUP BY DATE(validafter), relay_statuses_per_day.count;
