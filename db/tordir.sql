@@ -280,7 +280,7 @@ CREATE VIEW relay_bandwidth_v AS
     GROUP BY DATE(validafter), relay_statuses_per_day.count;
 
 --Total advertised bandwidth of the network by day (in bytes per second)
-CREATE VIEW total_bandwidth_v
+CREATE VIEW total_bandwidth_v AS
     SELECT (SUM(bandwidthavg)
             / relay_statuses_per_day.count)::BIGINT AS bwavg,
         (SUM(bandwidthburst)

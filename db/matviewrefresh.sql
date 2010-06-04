@@ -2,6 +2,10 @@
 ----This script should be run every time ernie is run to
 ----keep data sinks up to date.
 
+--Make this script a transaction, so we don't lose any data
+--in case of a mistake.
+BEGIN;
+
 --We need to drop these tables before we create them again--
 --TODO maybe there is a better way to do this instead of dropping/recreating tables
 
@@ -113,4 +117,6 @@ GRANT SELECT ON
     total_bandwidth,
     total_bandwidth_30_days,
     total_bandwidth_90_days
-TO ernie, kjb
+TO ernie;
+
+COMMIT;
