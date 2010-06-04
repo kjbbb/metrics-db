@@ -82,8 +82,8 @@ ALTER TABLE ONLY statusentry
 --    ADD CONSTRAINT descriptor_statusentry_pkey PRIMARY KEY (validafter, descriptor);
 
 CREATE INDEX descriptorid ON descriptor USING btree (descriptor);
-CREATE INDEX statusvalidafter ON statusentry USING btree (validafter);
-CREATE INDEX descriptorstatusvalidafter ON descriptor_statusentry USING btree (descriptor, validafter);
+CREATE INDEX statusentryid ON statusentry USING btree (descriptor, validafter);
+CREATE INDEX descriptorstatusid ON descriptor_statusentry USING btree (descriptor, validafter);
 
 CREATE LANGUAGE plpgsql;
 
@@ -221,3 +221,71 @@ CREATE VIEW relay_versions_v AS
     ON DATE(validafter) = relay_statuses_per_day.date
     GROUP BY DATE(validafter), version, count
     ORDER BY DATE(validafter);
+
+--Relay churn histogram
+CREATE VIEW relay_churn_v AS
+    SELECT DATE_TRUNC('month', validafter) AS first_day, descriptor
+    FROM statusentry
+    WHERE DATE(validafter) IN (
+        SELECT DATE(MIN(validafter))
+        FROM statusentry
+        WHERE isrunning IS true
+        GROUP BY DATE_TRUNC('month', validafter))
+    AND isrunning IS true
+    GROUP BY DATE_TRUNC('month', validafter), descriptor;
+
+CREATE VIEW relay_churn_seen_v AS
+    SELECT DATE(statusentry.validafter), statusentry.descriptor
+    FROM statusentry, relay_churn_v
+    WHERE DATE_TRUNC('month', statusentry.validafter) = relay_churn_v.first_day
+    AND statusentry.descriptor=relay_churn_v.descriptor
+    GROUP BY DATE(statusentry.validafter), statusentry.descriptor;
+
+CREATE VIEW relay_hist_v AS
+    SELECT COUNT(*) AS days, DATE_TRUNC('month', date) AS month
+    FROM relay_churn_seen_v
+    GROUP BY DATE_TRUNC('month', date), descriptor;
+
+--Average node life by month
+-----TODO Pretty sure this is wrong. Is a descriptor valid for only 24hrs?
+CREATE VIEW avg_node_life_v AS
+    SELECT EXTRACT('epoch' FROM AVG(difference.max - difference.min))
+        / 86400 AS avg,
+        DATE_TRUNC('month', validafter) AS day
+        DATE(validafter) AS day
+    FROM statusentry
+    JOIN (select descriptor, MAX(validafter) AS max, min(validafter) as MIN
+        FROM statusentry
+        GROUP BY descriptor) difference
+    ON statusentry.descriptor=difference.descriptor
+    GROUP BY DATE_TRUNC('month', validafter)
+
+--Avg uptime (node life) by day
+--TODO divide by # statusentries per day
+SELECT (AVG(uptime)/3600)::INT/24 AS uptime_days,
+    (STDDEV(uptime)/3600)::INT/24 AS stddev_days,
+    DATE(validafter)
+FROM descriptor_statusentry
+WHERE validafter IS NOT NULL
+GROUP BY DATE(validafter)
+ORDER BY DATE(validafter);
+
+--Avg bandwidth per node
+--TODO divide by # statusentries per day
+SELECT AVG(bandwidthavg)::INT/24 AS bwavg,
+    AVG(bandwidthburst)::INT/24 AS bwburst,
+    AVG(bandwidthobserved)::INT/24 AS bwobserved,
+    DATE(validafter)
+FROM descriptor_statusentry
+WHERE validafter IS NOT NULL
+GROUP BY DATE(validafter);
+
+--Total advertised bandwidth of the network
+--TODO divide by # statusentries per day
+SELECT SUM(bandwidthavg)/24 AS bwavg,
+    SUM(bandwidthburst)/24 AS bwburst,
+    SUM(bandwidthobserved)/24 AS bwobserved,
+    DATE(validafter)
+FROM descriptor_statusentry
+WHERE validafter IS NOT NULL
+GROUP BY DATE(validafter);
