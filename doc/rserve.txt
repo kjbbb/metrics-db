@@ -1,0 +1,68 @@
+--RSERVE
+Rserve allows us to have a persistent R instance to generate
+graphs. It can also pre-load libraries to speed things up some
+more. It will fork itself on each connection, so graphs can
+be generated in parallel if the need arises.
+
+Here, I will also go over the R Postgres driver which is needed
+to connect to the ernie database.
+
+--SETUP
+It is important to configure Rserve to run on your system. I
+recommend adding an Rserve user and group, so it can run in its own
+environment. If you have an 'ernie' user, you can use this, or make
+a separate user and group 'rserve.'
+
+--ADD THE USER AND GROUP RSERVE TO YOUR SYSTEM WITH NO SHELL AND
+NO HOME DIRECTORY
+
+$ useradd rserve -s /bin/false -U
+
+--SETUP RSERVE TO RUN UNDER THIS USER (SAMPLE COMMAND AND OUTPUT)
+
+Find the uid and gid of rserve user
+
+$ id rserve
+uid=1011(rserve) gid=1012(rserve) groups=1012(rserve)
+
+In the rserve/ directory, edit 'Rserv.conf'. change the uid and gid
+lines according to the output above.
+
+uid 1011
+gid 1012
+
+--ADD ERNIE USER AND MODIFY PERMISSIONS
+$ usermod -a -G ernie rserve
+$ usermod -a -G ernie apache (Assuming this is the user Tomcat runs as)
+
+--HOW TO INSTALL RSERVE AND POSTGRES PACKAGES FROM THE R CONSOLE:
+$ R
+install.packages("Rserve")
+install.packages("RPostgreSQL")
+
+--HOW TO START AND STOP RSERVE
+Use the supplied start and shutdown scripts to stop/start it nicely.
+NOTE - The scripts MUST be run as root if you want it to fork and
+run as the proper usre.
+
+--HOW TO TEST RSERVE WITH THE NATIVE R CLIENT:
+$ R
+library(Rserve)
+c <- RSconnect()
+RSshutdown(c)
+
+--HOW TO TEST THE R POSTGRES DRIVER:
+This will depend on your local setup. If you followed the manual.pdf
+postgres config, your R code should look like this:
+
+$ R
+library(RPostgreSQL)
+drv <- dbDriver("PostgreSQL")
+con <- dbConnect(drv, user="ernie", password="", dbname="tordir")
+dbDisconnect(con)
+dbUnloadDriver(drv)
+
+--SEE MORE HERE
+If you want to configure a specific socket or other things
+
+http://www.rforge.net/Rserve/doc.html
