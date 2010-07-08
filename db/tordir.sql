@@ -211,17 +211,23 @@ CREATE VIEW relay_platforms_v AS
 
 --Relay versions
 CREATE VIEW relay_versions_v AS
-    SELECT
-        DATE(validafter),
-        substring(platform, 5, 5) as version,
-        COUNT(*) / relay_statuses_per_day.count as count
-    FROM descriptor_statusentry
-    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-            FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
-            GROUP BY DATE(validafter)) relay_statuses_per_day
-    ON DATE(validafter) = relay_statuses_per_day.date
-    GROUP BY DATE(validafter), version, count
-    ORDER BY DATE(validafter);
+  SELECT
+    DATE(validafter),
+    SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.1.2' THEN 1 ELSE 0 END)
+        / relay_statuses_per_day.count AS "0.1.2",
+    SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.0' THEN 1 ELSE 0 END)
+        /relay_statuses_per_day.count AS "0.2.0",
+    SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.1' THEN 1 ELSE 0 END)
+        /relay_statuses_per_day.count AS "0.2.1",
+    SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.2' THEN 1 ELSE 0 END)
+        /relay_statuses_per_day.count AS "0.2.2"
+  FROM descriptor_statusentry
+  JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+          FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+          GROUP BY DATE(validafter)) relay_statuses_per_day
+  ON DATE(validafter) = relay_statuses_per_day.date
+  GROUP BY DATE(validafter), relay_statuses_per_day.count
+  ORDER BY DATE(validafter);
 
 --Relay churn histogram
 --TODO fix this.
