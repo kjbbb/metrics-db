@@ -60,8 +60,8 @@ plot_platforms <- function(start, end, path) {
     scale_y_continuous(name="",
       limits=c(0,max(p$value, na.rm=TRUE))) +
     scale_colour_brewer(name="Platforms",
-      breaks=c("avg_linux", "avg_darwin", "avg_bsd", "avg_windows"),
-      labels=c("Linux", "Darwin", "FreeBSD", "Windows"))
+      breaks=c("avg_linux", "avg_darwin", "avg_bsd", "avg_windows", "avg_other"),
+      labels=c("Linux", "Darwin", "FreeBSD", "Windows", "Other"))
   ggsave(filename=path,width=8,height=5,dpi=72)
   dbDisconnect(con)
   dbUnloadDriver(drv)
