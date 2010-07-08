@@ -200,7 +200,12 @@ CREATE VIEW relay_platforms_v AS
         SUM(CASE WHEN platform LIKE '%BSD%' THEN 1 ELSE 0 END) /
             relay_statuses_per_day.count AS avg_bsd,
         SUM(CASE WHEN platform LIKE '%Windows%' THEN 1 ELSE 0 END) /
-            relay_statuses_per_day.count AS avg_windows
+            relay_statuses_per_day.count AS avg_windows,
+        SUM(CASE WHEN platform NOT LIKE '%Windows%'
+            AND platform NOT LIKE '%Darwin%'
+            AND platform NOT LIKE '%BSD%'
+            AND platform NOT LIKE '%Linux%' THEN 1 ELSE 0 END) /
+            relay_statuses_per_day.count AS avg_other
     FROM descriptor_statusentry
     JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
             FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
