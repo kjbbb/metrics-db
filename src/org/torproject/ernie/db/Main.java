@@ -33,11 +33,23 @@ public class Main {
     SortedSet<String> countries = config.getDirreqBridgeCountries();
     SortedSet<String> directories = config.getDirreqDirectories();
 
+    // Prepare writing relay descriptors to database
+    RelayDescriptorDatabaseImporter rddi =
+        config.getWriteRelayDescriptorDatabase() ?
+        new RelayDescriptorDatabaseImporter(
+        config.getRelayDescriptorDatabaseJDBC()) : null;
+
+    // Prepare writing bridge descriptors to database
+    BridgeDescriptorDatabaseImporter bddi =
+        config.getWriteBridgeDescriptorDatabase() ?
+        new BridgeDescriptorDatabaseImporter(
+        config.getRelayDescriptorDatabaseJDBC()) : null;
+
     // Prepare stats file handlers (only if we are writing stats)
     ConsensusStatsFileHandler csfh = config.getWriteConsensusStats() ?
         new ConsensusStatsFileHandler() : null;
     BridgeStatsFileHandler bsfh = config.getWriteBridgeStats() ?
-        new BridgeStatsFileHandler(countries) : null;
+        new BridgeStatsFileHandler(countries, bddi) : null;
     DirreqStatsFileHandler dsfh = config.getWriteDirreqStats() ?
         new DirreqStatsFileHandler(countries) : null;
     ServerDescriptorStatsFileHandler sdsfh =
@@ -53,12 +65,6 @@ public class Main {
     ArchiveWriter aw = config.getWriteDirectoryArchives() ?
         new ArchiveWriter(config.getDirectoryArchivesOutputDirectory())
         : null;
-
-    // Prepare writing relay descriptors to database
-    RelayDescriptorDatabaseImporter rddi =
-        config.getWriteRelayDescriptorDatabase() ?
-        new RelayDescriptorDatabaseImporter(
-        config.getRelayDescriptorDatabaseJDBC()) : null;
 
     // Prepare relay descriptor parser (only if we are writing stats or
     // directory archives to disk)
@@ -176,6 +182,10 @@ public class Main {
     if (csfh != null) {
       csfh.writeFiles();
       csfh = null;
+    }
+
+    if (bddi != null) {
+      bddi.closeConnection();
     }
 
     // Import and process torperf stats
