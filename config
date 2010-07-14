@@ -89,6 +89,9 @@
 ## Write torperf data to database
 #WriteTorperfDatabase 0
 #
+##Write GetTor data to database
+#WriteGetTorDatabase 0
+#
 ## JDBC string for relay descriptor database
 #RelayDescriptorDatabaseJDBC jdbc:postgresql://localhost/tordir?user=ernie&password=password
 #

@@ -51,6 +51,12 @@ public class Main {
         new TorperfDatabaseImporter(
         config.getRelayDescriptorDatabaseJDBC()) : null;
 
+    // Prepare writing GetTor statistics to database
+    GetTorDatabaseImporter gtdi =
+        config.getWriteGetTorDatabase() ?
+        new GetTorDatabaseImporter(
+        config.getRelayDescriptorDatabaseJDBC()) : null;
+
     // Prepare stats file handlers (only if we are writing stats)
     ConsensusStatsFileHandler csfh = config.getWriteConsensusStats() ?
         new ConsensusStatsFileHandler() : null;
@@ -201,7 +207,7 @@ public class Main {
 
     // Download and process GetTor stats
     if (config.getDownloadProcessGetTorStats()) {
-      new GetTorProcessor(config.getGetTorStatsUrl());
+      new GetTorProcessor(config.getGetTorStatsUrl(), gtdi);
     }
 
     // Download exit list and store it to disk

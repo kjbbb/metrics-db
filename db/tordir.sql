@@ -97,6 +97,12 @@ CREATE TABLE torperf_stats (
     q3 integer NOT NULL
 );
 
+CREATE TABLE gettor_stats (
+    time timestamp without time zone NOT NULL,
+    bundle character varying(32) NOT NULL,
+    count integer NOT NULL
+);
+
 ALTER TABLE ONLY descriptor
     ADD CONSTRAINT descriptor_pkey PRIMARY KEY (descriptor);
 
@@ -112,11 +118,15 @@ ALTER TABLE ONLY bridge_stats
 ALTER TABLE ONLY torperf_stats
     ADD CONSTRAINT torperf_stats_pkey PRIMARY KEY (source, time);
 
+ALTER TABLE gettor_stats
+    ADD CONSTRAINT gettor_stats_pkey PRIMARY KEY(time, bundle);
+
 CREATE INDEX descriptorid ON descriptor USING btree (descriptor);
 CREATE INDEX statusentryid ON statusentry USING btree (descriptor, validafter);
 CREATE INDEX descriptorstatusid ON descriptor_statusentry USING btree (descriptor, validafter);
 CREATE INDEX bridgestatsid ON bridge_stats USING btree (validafter);
 CREATE INDEX torperfstatsid ON torperf_stats USING btree (time);
+CREATE INDEX gettorstatsid ON gettor_stats USING btree (time);
 
 CREATE LANGUAGE plpgsql;
 
