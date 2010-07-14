@@ -89,6 +89,13 @@ CREATE TABLE bridge_stats (
     ye float
 );
 
+CREATE TABLE torperf_stats (
+    source character varying(32) NOT NULL,
+    time timestamp without time zone NOT NULL,
+    q1 integer NOT NULL,
+    md integer NOT NULL,
+    q3 integer NOT NULL
+);
 
 ALTER TABLE ONLY descriptor
     ADD CONSTRAINT descriptor_pkey PRIMARY KEY (descriptor);
@@ -99,19 +106,17 @@ ALTER TABLE ONLY statusentry
 --ALTER TABLE ONLY descriptor_statusentry
 --    ADD CONSTRAINT descriptor_statusentry_pkey PRIMARY KEY (validafter, descriptor);
 
-ALTER TABLE ONLY torperf
-    ADD CONSTRAINT torperf_pkey PRIMARY KEY (source, validafter);
-
-ALTER TABLE ONLY gettor
-    ADD CONSTRAINT gettor_pkey PRIMARY KEY (validafter);
-
 ALTER TABLE ONLY bridge_stats
     ADD CONSTRAINT bridge_stats_pkey PRIMARY KEY (validafter);
+
+ALTER TABLE ONLY torperf_stats
+    ADD CONSTRAINT torperf_stats_pkey PRIMARY KEY (source, time);
 
 CREATE INDEX descriptorid ON descriptor USING btree (descriptor);
 CREATE INDEX statusentryid ON statusentry USING btree (descriptor, validafter);
 CREATE INDEX descriptorstatusid ON descriptor_statusentry USING btree (descriptor, validafter);
 CREATE INDEX bridgestatsid ON bridge_stats USING btree (validafter);
+CREATE INDEX torperfstatsid ON torperf_stats USING btree (time);
 
 CREATE LANGUAGE plpgsql;
 

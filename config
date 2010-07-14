@@ -86,6 +86,9 @@
 ## Write bridge user statistics to database for later evaluation.
 #WriteBridgeDescriptorDatabase 0
 #
+## Write torperf data to database
+#WriteTorperfDatabase 0
+#
 ## JDBC string for relay descriptor database
 #RelayDescriptorDatabaseJDBC jdbc:postgresql://localhost/tordir?user=ernie&password=password
 #
