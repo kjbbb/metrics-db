@@ -50,7 +50,7 @@ public final class TorperfDatabaseImporter {
     try {
       this.conn = DriverManager.getConnection(connectionURL);
       this.psTp = conn.prepareStatement("INSERT INTO torperf_stats " +
-          "(source, time, q1, md, q3) VALUES (?, ?, ?, ?, ?)");
+          "(source, time, size, q1, md, q3) VALUES (?, ?, ?, ?, ?, ?)");
       this.psMaxdate = conn.prepareStatement("SELECT MAX(DATE(time)) " +
           "as maxdate FROM torperf_stats");
 
@@ -76,14 +76,19 @@ public final class TorperfDatabaseImporter {
       String[] parts = values.split(",");
       Timestamp timestamp = new Timestamp(df.parse(parts[1]).getTime());
 
+      /*Separate source and size*/
+      String source = parts[0].split("-")[0];
+      String size = parts[0].split("-")[1];
+
       /* Add new torperf data */
       if (timestamp.after(maxDate)) {
         psTp.clearParameters();
-        psTp.setString(1, parts[0]);
+        psTp.setString(1, source);
         psTp.setTimestamp(2, timestamp);
-        psTp.setInt(3, Integer.parseInt(parts[2]));
-        psTp.setInt(4, Integer.parseInt(parts[3]));
-        psTp.setInt(5, Integer.parseInt(parts[4]));
+        psTp.setString(3, size);
+        psTp.setInt(4, Integer.parseInt(parts[2]));
+        psTp.setInt(5, Integer.parseInt(parts[3]));
+        psTp.setInt(6, Integer.parseInt(parts[4]));
         psTp.execute();
       }
 

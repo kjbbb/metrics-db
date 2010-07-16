@@ -92,6 +92,7 @@ CREATE TABLE bridge_stats (
 CREATE TABLE torperf_stats (
     source character varying(32) NOT NULL,
     time timestamp without time zone NOT NULL,
+    size character varying(8) NOT NULL,
     q1 integer NOT NULL,
     md integer NOT NULL,
     q3 integer NOT NULL
@@ -116,7 +117,7 @@ ALTER TABLE ONLY bridge_stats
     ADD CONSTRAINT bridge_stats_pkey PRIMARY KEY (validafter);
 
 ALTER TABLE ONLY torperf_stats
-    ADD CONSTRAINT torperf_stats_pkey PRIMARY KEY (source, time);
+    ADD CONSTRAINT torperf_stats_pkey PRIMARY KEY (source, size, time);
 
 ALTER TABLE gettor_stats
     ADD CONSTRAINT gettor_stats_pkey PRIMARY KEY(time, bundle);
