@@ -81,3 +81,22 @@ plot_bandwidth <- function(start, end, path) {
   dbDisconnect(con)
   dbUnloadDriver(drv)
 }
+
+#this function accepts a two letter country code, like "cn"
+plot_bridge_users <- function(country, start, end, path)  {
+  drv <- dbDriver("PostgreSQL")
+  con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
+  q <- paste("select ",country,", date(validafter) as date from bridge_stats ",
+             "where validafter>='",start,"' and validafter <= '",end,"'")
+  rs <- dbSendQuery(con, q)
+  bu <- fetch(rs,n=-1)
+  bu <- melt(bu, id="date")
+  ggplot(bu, aes(x = as.Date(date, "%Y-%m-%d"), y = value)) +
+    geom_line() +
+    scale_x_date(name="") +
+    scale_y_continuous(name="Bridge Users")
+  ggsave(filename = path, width = 8, height = 5, dpi = 72)
+  dbDisconnect(con)
+  dbUnloadDriver(drv)
+}
+
