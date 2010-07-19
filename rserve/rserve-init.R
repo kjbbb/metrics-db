@@ -138,3 +138,26 @@ plot_torperf_stats <- function (source, size, start, end, path) {
   dbUnloadDriver(drv)
 }
 
+# bundle argument accepts the ending string of the bundle,
+# e.g. "zh_cn", "en", "es", etc. Usually a country code.
+
+plot_gettor_stats <- function (bundle, start, end, path)  {
+  drv <- dbDriver("PostgreSQL")
+  con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
+
+  if (bundle == "all")  { bundle = "" }
+
+  q = paste("select date(time) as date, sum(count) as sum ",
+      "from gettor_stats where bundle like '%",bundle,"' ",
+      "and time >= '",start,"' and time <= '",end,"' ",
+      "group by date(time) order by date(time)", sep="",collapse="")
+
+  rs <- dbSendQuery(con, q)
+  gt<- fetch(rs, n=-1)
+
+  ggplot(data=gt, aes(x=as.Date(date, "%Y-%m-%d"), y=sum)) +
+    geom_line() +
+    scale_x_date(name="") +
+    scale_y_continuous(name="")
+  ggsave(filename=path, width=8, height=5, dpi=72)
+}
