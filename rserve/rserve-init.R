@@ -83,7 +83,7 @@ plot_bandwidth <- function(start, end, path) {
 }
 
 #this function accepts a two letter country code, like "cn"
-plot_bridge_users <- function(country, start, end, path)  {
+plot_bridge_users <- function(start, end, path, country)  {
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
   q <- paste("select ",country,", date(validafter) as date from bridge_stats ",
@@ -100,7 +100,7 @@ plot_bridge_users <- function(country, start, end, path)  {
   dbUnloadDriver(drv)
 }
 
-plot_torperf <- function (source, size, start, end, path) {
+plot_torperf <- function (start, end, path, source, size) {
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword)
 
@@ -141,7 +141,7 @@ plot_torperf <- function (source, size, start, end, path) {
 # bundle argument accepts the ending string of the bundle,
 # e.g. "zh_cn", "en", "es", etc. Usually a country code.
 
-plot_gettor <- function (bundle, start, end, path)  {
+plot_gettor <- function (start, end, path, bundle)  {
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
 
