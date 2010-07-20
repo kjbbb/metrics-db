@@ -100,7 +100,7 @@ plot_bridge_users <- function(country, start, end, path)  {
   dbUnloadDriver(drv)
 }
 
-plot_torperf_stats <- function (source, size, start, end, path) {
+plot_torperf <- function (source, size, start, end, path) {
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword)
 
@@ -141,7 +141,7 @@ plot_torperf_stats <- function (source, size, start, end, path) {
 # bundle argument accepts the ending string of the bundle,
 # e.g. "zh_cn", "en", "es", etc. Usually a country code.
 
-plot_gettor_stats <- function (bundle, start, end, path)  {
+plot_gettor <- function (bundle, start, end, path)  {
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
 
