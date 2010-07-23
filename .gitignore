@@ -41,6 +41,3 @@ website/consensus-health*.html
 # Temporary directory for generating web archive
 dist/
 
-# Generated web archive
-ernie.war
-
