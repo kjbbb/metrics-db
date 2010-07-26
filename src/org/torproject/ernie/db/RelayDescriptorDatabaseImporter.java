@@ -1,3 +1,5 @@
+package org.torproject.ernie.db;
+
 import java.sql.*;
 import java.util.*;
 import java.util.logging.*;

@@ -42,7 +42,7 @@
     <java classpath="${classes};lib/commons-codec-1.4.jar:lib/commons-compress-1.0.jar;lib/postgresql-8.4-701.jdbc4.jar"
           fork="true"
           maxmemory="1024m"
-          classname="Main"/>
+          classname="org.torproject.ernie.db.Main"/>
   </target>
   <target name="docs">
     <mkdir dir="${docs}"/>

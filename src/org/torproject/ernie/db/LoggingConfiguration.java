@@ -1,3 +1,5 @@
+package org.torproject.ernie.db;
+
 import java.io.*;
 import java.text.*;
 import java.util.Date;
