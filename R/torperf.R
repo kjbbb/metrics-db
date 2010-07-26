@@ -38,8 +38,8 @@ if (file.exists("stats/torperf-stats")) {
           u <- rbind(u, data.frame(date = as.Date(missing, origin = "1970-01-01"),
               q1 = NA, md = NA, q3 = NA))
         }
-        maxy <- max(t[t$source %in% paste(sources, "-", size, sep = ""),5],
-            na.rm = TRUE)
+        maxy <- max(t[t$source %in% paste(sources, "-", size, sep = "") &
+            t$date >= start & t$date <= end, 5], na.rm = TRUE)
         ggplot(u, aes(x = as.Date(date), y = md/1e3, fill = "line")) +
           geom_line(colour = colors[sourceInd], size = 0.75) +
           geom_ribbon(data = u, aes(x = date, ymin = q1/1e3,
