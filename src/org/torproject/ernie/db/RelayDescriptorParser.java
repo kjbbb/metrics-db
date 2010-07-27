@@ -154,7 +154,8 @@ public class RelayDescriptorParser {
             serverDescriptors.add(publishedTime + "," + relayIdentity
                 + "," + serverDesc);
             hashedRelayIdentities.add(DigestUtils.shaHex(
-                Base64.decodeBase64(relayIdentity + "=")).toUpperCase());
+                Base64.decodeBase64(line.split(" ")[2] + "=")).
+                toUpperCase());
             descriptorIdentity = line.split(" ")[3];
           } else if (line.startsWith("s ")) {
             if (line.contains(" Running")) {
