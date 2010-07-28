@@ -26,7 +26,8 @@ if (file.exists("stats/gettor-stats")) {
 
   plot_packages <- function(filename, title, data) {
     ggplot(data, aes(x = as.Date(date, "%Y-%m-%d"), y = packages)) + geom_line() +
-      scale_x_date(name = "", limits = c(start, end)) +
+      scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/",
+      limits = c(start, end)) +
       scale_y_continuous(name = "",
       limits = c(0, max(data$packages, na.rm = TRUE))) +
       opts(title = paste(title, "\n", sep = ""))

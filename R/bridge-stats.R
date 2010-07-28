@@ -4,7 +4,8 @@ suppressPackageStartupMessages(library("ggplot2"))
 plot_bridges <- function(filename, title, limits, code) {
   c <- data.frame(date = bridge$date, users = bridge[[code]])
   ggplot(c, aes(x = as.Date(date, "%Y-%m-%d"), y = users)) +
-    geom_line() + scale_x_date(name = "", limits = limits) +
+    geom_line() + scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/",
+    limits = limits) +
     scale_y_continuous(name = "", limits = c(0, max(bridge[[code]],
     na.rm = TRUE))) +
     opts(title = title)

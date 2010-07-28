@@ -11,7 +11,8 @@ if (file.exists("stats/consensus-stats-raw")) {
     m <- melt(relaysDay[,c(1, 5, 2)], id = "datetime")
     ggplot(m, aes(x = as.POSIXct(datetime, tz = "GMT"), y = value,
       colour = variable)) + geom_point() +
-      scale_x_datetime(name = "", limits = c(from, to)) +
+      scale_x_datetime(name = "\nThe Tor Project - https://metrics.torproject.org/",
+      limits = c(from, to)) +
       scale_y_continuous(name = "") +
       scale_colour_hue("", breaks = c("running", "exit"),
       labels = c("All relays", "Exit relays")) +
@@ -38,7 +39,8 @@ plot_consensus <- function(directory, filename, title, limits, rows, breaks,
   c <- melt(consensuses[rows], id = "date")
   ggplot(c, aes(x = as.Date(date, "%Y-%m-%d"), y = value,
     colour = variable)) + geom_line() + #stat_smooth() +
-    scale_x_date(name = "", limits = limits) +
+    scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/",
+    limits = limits) +
     #paste("\nhttp://metrics.torproject.org/ -- last updated:",
     #  date(), "UTC"),
     scale_y_continuous(name = "",

@@ -44,7 +44,7 @@ if (file.exists("stats/torperf-stats")) {
           geom_line(colour = colors[sourceInd], size = 0.75) +
           geom_ribbon(data = u, aes(x = date, ymin = q1/1e3,
             ymax = q3/1e3, fill = "ribbon")) +
-          scale_x_date(name = "") +
+          scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/") +
           scale_y_continuous(name = "", limits = c(0, maxy / 1e3)) +
           coord_cartesian(ylim = c(0, 0.8 * maxy / 1e3)) +
           scale_fill_manual(name = paste("Measured times on",

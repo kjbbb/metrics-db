@@ -38,7 +38,7 @@ plot_versions <- function() {
 
     # Override the default x axis which would display a label "date" with
     # an x axis that has no label. This line can be commented out.
-    scale_x_date(name = "") +
+    scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/") +
 
     # Override the default y axis with label "value" with one that has no
     # label and that starts at the origin. Note that the max() function is
@@ -73,7 +73,8 @@ plot_platforms <- function() {
   p <- melt(platforms, id = "date")
   ggplot(p, aes(x = date, y = value, colour = variable)) +
     geom_line(size = 1) +
-    scale_x_date(name = "") + scale_y_continuous(name = "",
+    scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/") +
+    scale_y_continuous(name = "",
         limits = c(0, max(p$value, na.rm = TRUE))) +
     scale_colour_brewer(name = "Platform",
         breaks = rev(names(platforms)[2:length(names(platforms))]),
@@ -87,7 +88,7 @@ plot_platforms <- function() {
 # plot_versions() for details.
 plot_bandwidth <- function() {
   ggplot(bandwidth, aes(x = date, y = advbw / 1024)) + geom_line() +
-    scale_x_date(name = "") +
+    scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/") +
     scale_y_continuous(name = "Bandwidth (MiB/s)",
         limits = c(0, max(bandwidth$advbw / 1024, na.rm = TRUE))) +
     opts(title = "Total advertised bandwidth\n")
