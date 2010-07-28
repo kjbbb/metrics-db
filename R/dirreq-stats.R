@@ -5,7 +5,8 @@ plot_dirreq <- function(directory, filename, title, limits, data, code) {
   c <- data.frame(date = data$date, users = data[[code]])
   ggplot(c, aes(x = as.Date(date, "%Y-%m-%d"), y = users)) +
     geom_line() +
-    scale_x_date(name = "", limits = limits) +
+    scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/",
+    limits = limits) +
     scale_y_continuous(name = "",
     limits = c(0, max(c$users, na.rm = TRUE))) +
     opts(title = title)
