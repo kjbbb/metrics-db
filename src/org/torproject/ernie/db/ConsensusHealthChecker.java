@@ -4,6 +4,7 @@ import java.io.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.logging.*;
 import org.apache.commons.codec.binary.*;
 
 /*
@@ -17,8 +18,19 @@ public class ConsensusHealthChecker {
 
   private byte[] mostRecentConsensus = null;
 
+  /**
+   * Logger for this class.
+   */
+  private Logger logger;
+
   private SortedMap<String, byte[]> mostRecentVotes =
         new TreeMap<String, byte[]>();
+
+  public ConsensusHealthChecker() {
+    /* Initialize logger. */
+    this.logger = Logger.getLogger(
+        ConsensusHealthChecker.class.getName());
+  }
 
   public void processConsensus(String validAfterTime, byte[] data) {
     if (this.mostRecentValidAfterTime == null ||
@@ -201,11 +213,17 @@ public class ConsensusHealthChecker {
             + "            <td><font color=\"red\">"
               + voteConsensusMethods + "</font></td>\n"
             + "          </tr>\n");
+        this.logger.warning(dirSource + " does not support consensus "
+            + "method " + consensusConsensusMethod.split(" ")[1] + ": "
+            + voteConsensusMethods);
       } else {
         consensusMethodsResults.append("          <tr>\n"
                + "            <td>" + dirSource + "</td>\n"
                + "            <td>" + voteConsensusMethods + "</td>\n"
                + "          </tr>\n");
+        this.logger.fine(dirSource + " supports consensus method "
+            + consensusConsensusMethod.split(" ")[1] + ": "
+            + voteConsensusMethods);
       }
 
       /* Write recommended versions. */
@@ -218,11 +236,15 @@ public class ConsensusHealthChecker {
             + "            <td><font color=\"red\">"
               + voteClientVersions + "</font></td>\n"
             + "          </tr>\n");
+        this.logger.warning(dirSource + " recommends other client "
+            + "versions than the consensus: " + voteClientVersions);
       } else {
         versionsResults.append("          <tr>\n"
             + "            <td>" + dirSource + "</td>\n"
             + "            <td>" + voteClientVersions + "</td>\n"
             + "          </tr>\n");
+        this.logger.fine(dirSource + " recommends the same client "
+            + "versions as the consensus: " + voteClientVersions);
       }
       if (voteServerVersions == null) {
         /* Not a versioning authority. */
@@ -232,11 +254,15 @@ public class ConsensusHealthChecker {
             + "            <td><font color=\"red\">"
               + voteServerVersions + "</font></td>\n"
             + "          </tr>\n");
+        this.logger.warning(dirSource + " recommends other server "
+            + "versions than the consensus: " + voteServerVersions);
       } else {
         versionsResults.append("          <tr>\n"
             + "            <td/>\n"
             + "            <td>" + voteServerVersions + "</td>\n"
             + "          </tr>\n");
+        this.logger.fine(dirSource + " recommends the same server "
+            + "versions as the consensus: " + voteServerVersions);
       }
 
       /* Write consensus parameters. */
@@ -262,11 +288,15 @@ public class ConsensusHealthChecker {
             + "            <td><font color=\"red\">"
               + voteParams + "</font></td>\n"
             + "          </tr>\n");
+        this.logger.warning(dirSource + " sets conflicting or invalid "
+            + "consensus parameters: " + voteParams);
       } else {
         paramsResults.append("          <tr>\n"
             + "            <td>" + dirSource + "</td>\n"
             + "            <td>" + voteParams + "</td>\n"
             + "          </tr>\n");
+        this.logger.fine(dirSource + " sets only non-conflicting and "
+            + "valid consensus parameters: " + voteParams);
       }
 
       /* Write authority key expiration date. */
@@ -287,11 +317,15 @@ public class ConsensusHealthChecker {
               + "            <td><font color=\"red\">"
                 + voteDirKeyExpires + "</font></td>\n"
               + "          </tr>\n");
+          this.logger.warning(dirSource + "'s certificate expires in the "
+              + "next 14 days: " + voteDirKeyExpires);
         } else {
           authorityKeysResults.append("          <tr>\n"
               + "            <td>" + dirSource + "</td>\n"
               + "            <td>" + voteDirKeyExpires + "</td>\n"
               + "          </tr>\n");
+          this.logger.fine(dirSource + "'s certificate does not "
+              + "expire in the next 14 days: " + voteDirKeyExpires);
         }
       }
 
@@ -383,8 +417,14 @@ public class ConsensusHealthChecker {
       if (consensusIsStale) {
         bw.write("<font color=\"red\">" + this.mostRecentValidAfterTime
             + "</font>");
+        this.logger.warning("The last consensus published at "
+            + this.mostRecentValidAfterTime + " is more than 3 hours "
+            + "old.");
       } else {
         bw.write(this.mostRecentValidAfterTime);
+        this.logger.fine("The last consensus published at "
+            + this.mostRecentValidAfterTime + " is less than 3 hours "
+            + "old.");
       }
       bw.write(". <i>Note that it takes "
             + "15 to 30 minutes for the metrics portal to learn about "
