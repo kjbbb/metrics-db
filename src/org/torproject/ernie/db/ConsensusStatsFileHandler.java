@@ -485,17 +485,39 @@ public class ConsensusStatsFileHandler {
         + "Added " + this.relayResultsAdded + " relay consensus(es) and "
         + this.bridgeResultsAdded + " bridge status(es) in this "
         + "execution.");
+    long now = System.currentTimeMillis();
+    SimpleDateFormat dateTimeFormat =
+        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    dateTimeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
     if (this.relaysRaw.isEmpty()) {
       dumpStats.append("\nNo relay consensus known yet.");
     } else {
       dumpStats.append("\nLast known relay consensus was published "
           + this.relaysRaw.lastKey() + ".");
+      try {
+        if (now - 6L * 60L * 60L * 1000L > dateTimeFormat.parse(
+            this.relaysRaw.lastKey()).getTime()) {
+          logger.warning("Last known relay consensus is more than 6 hours "
+              + "old: " + this.relaysRaw.lastKey());
+        }
+      } catch (ParseException e) {
+         /* Can't parse the timestamp? Whatever. */
+      }
     }
     if (this.bridgesRaw.isEmpty()) {
       dumpStats.append("\nNo bridge status known yet.");
     } else {
       dumpStats.append("\nLast known bridge status was published "
           + this.bridgesRaw.lastKey() + ".");
+      try {
+        if (now - 6L * 60L * 60L * 1000L > dateTimeFormat.parse(
+            this.bridgesRaw.lastKey()).getTime()) {
+          logger.warning("Last known bridge status is more than 6 hours "
+              + "old: " + this.bridgesRaw.lastKey());
+        }
+      } catch (ParseException e) {
+         /* Can't parse the timestamp? Whatever. */
+      }
     }
     logger.info(dumpStats.toString());
   }
