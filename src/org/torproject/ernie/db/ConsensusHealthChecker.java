@@ -240,18 +240,22 @@ public class ConsensusHealthChecker {
       }
 
       /* Write consensus parameters. */
-      boolean conflict = false;
+      boolean conflictOrInvalid = false;
+      Set<String> validParameters = new HashSet<String>(Arrays.asList(
+          "circwindow,CircuitPriorityHalflifeMsec".split(",")));
       if (voteParams == null) {
         /* Authority doesn't set consensus parameters. */
       } else {
         for (String param : voteParams.split(" ")) {
-          if (!consensusParams.contains(param)) {
-            conflict = true;
+          if (!param.equals("params") &&
+              (!consensusParams.contains(param) ||
+              !validParameters.contains(param.split("=")[0]))) {
+            conflictOrInvalid = true;
             break;
           }
         }
       }
-      if (conflict) {
+      if (conflictOrInvalid) {
         paramsResults.append("          <tr>\n"
             + "            <td><font color=\"red\">" + dirSource
               + "</font></td>\n"
