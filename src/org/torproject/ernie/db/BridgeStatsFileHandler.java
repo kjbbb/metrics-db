@@ -1,3 +1,5 @@
+/* Copyright 2010 The Tor Project
+ * See LICENSE for licensing information */
 package org.torproject.ernie.db;
 
 import java.io.*;
