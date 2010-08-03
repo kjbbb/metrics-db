@@ -386,13 +386,24 @@ plot_bandwidth_platforms_piechart <- function(start, end, path)  {
   rs <- dbSendQuery(con, q)
   bandwidth <- fetch(rs,n=-1)
 
+  bandwidth$bandwidthsum = bandwidth$bandwidthsum / sum(bandwidth$bandwidthsum)
+  pct_windows = round(bandwidth$bandwidthsum[bandwidth$platform=="Windows"]*100, 1)
+  pct_linux = round(bandwidth$bandwidthsum[bandwidth$platform=="Linux"]*100, 1)
+  pct_freebsd = round(bandwidth$bandwidthsum[bandwidth$platform=="FreeBSD"]*100, 1)
+  pct_darwin = round(bandwidth$bandwidthsum[bandwidth$platform=="Darwin"]*100, 1)
+  pct_other = round(bandwidth$bandwidthsum[bandwidth$platform=="other"]*100, 1)
+
   ggplot(bandwidth, aes(x="", y=bandwidthsum, fill=platform)) +
     geom_bar() +
     scale_y_continuous(name="", labels=NULL, breaks=NULL) +
     scale_x_discrete(name="", labels=NULL, breaks=NULL) +
     scale_fill_brewer(name="Platform",
         breaks=c("Windows","Linux","FreeBSD","Darwin","other"),
-        labels=c("lol", "hii", "hbs", "sdcs", "sdcsc")) +
+        labels=c(paste("Windows - ",pct_windows,"%",sep=""),
+            paste("Linux - ",pct_linux,"%",sep=""),
+            paste("FreeBSD - ",pct_freebsd,"%",sep=""),
+            paste("Darwin - ",pct_darwin,"%",sep=""),
+            paste("other - ",pct_other,"%",sep=""))) +
     coord_polar("y") +
     opts(title="Bandwidth distribution per platform")
 
