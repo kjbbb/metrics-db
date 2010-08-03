@@ -162,7 +162,7 @@ plot_gettor_line <- function (start, end, path, bundle)  {
   ggsave(filename=path, width=8, height=5, dpi=72)
 }
 
-plot_bandwidth_versions_boxplot <- function(start, end, path) {
+plot_bandwidth_versions_boxplot <- function(start, end, path, limit=0) {
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
 
@@ -177,9 +177,11 @@ plot_bandwidth_versions_boxplot <- function(start, end, path) {
   rs <- dbSendQuery(con, q)
   bandwidth <- fetch(rs,n=-1)
 
+  limit = ifelse(limit==0, max(bandwidth$bandwidthavg), limit)
+
   ggplot(bandwidth, aes(y=bandwidthavg, x=version, fill=version)) +
     geom_boxplot(outlier.size=1) +
-    scale_y_continuous(name="Bandwidth (Mbit/s)") +
+    scale_y_continuous(name="Bandwidth (Mbit/s)", limits=c(0, limit)) +
     scale_x_discrete(name="Version") +
     opts(title="Bandwidth per version")
 
@@ -190,7 +192,7 @@ plot_bandwidth_versions_boxplot <- function(start, end, path) {
   dbUnloadDriver(drv)
 }
 
-plot_bandwidth_platforms_boxplot <- function(start, end, path)  {
+plot_bandwidth_platforms_boxplot <- function(start, end, path, limit=0)  {
 
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
@@ -209,9 +211,11 @@ plot_bandwidth_platforms_boxplot <- function(start, end, path)  {
   rs <- dbSendQuery(con, q)
   bandwidth <- fetch(rs,n=-1)
 
+  limit = ifelse(limit==0, max(bandwidth$bandwidthavg), limit)
+
   ggplot(bandwidth, aes(y=bandwidthavg, x=platform, fill=platform)) +
     geom_boxplot(outlier.size=1) +
-    scale_y_continuous(name="Bandwidth (Mbit/s)") +
+    scale_y_continuous(name="Bandwidth (Mbit/s)", limits=c(0, limit)) +
     scale_x_discrete(name="Platform") +
     opts(title="Bandwidth per platform")
 
@@ -222,7 +226,7 @@ plot_bandwidth_platforms_boxplot <- function(start, end, path)  {
   dbUnloadDriver(drv)
 }
 
-plot_exit_uptime_boxplot <- function(start, end, path) {
+plot_exit_uptime_boxplot <- function(start, end, path, limit=0) {
 
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
@@ -241,9 +245,11 @@ plot_exit_uptime_boxplot <- function(start, end, path) {
   rs <- dbSendQuery(con, q)
   exituptime <- fetch(rs,n=-1)
 
+  limit = ifelse(limit==0, max(exituptime$uptime), limit)
+
   ggplot(exituptime, aes(y=uptime, x=guardexit, fill=guardexit)) +
     geom_boxplot(outlier.size=1) +
-    scale_y_continuous(name="Uptime (days)") +
+    scale_y_continuous(name="Uptime (days)", limits=c(0, limit)) +
     scale_x_discrete(name="Guard/Exit flags") +
     scale_colour_brewer(name="Guard/exit flags",
         breaks=c("ff", "tf", "tt", "ft"),
@@ -257,7 +263,7 @@ plot_exit_uptime_boxplot <- function(start, end, path) {
   dbUnloadDriver(drv)
 }
 
-plot_version_uptime_boxplot <- function(start, end, path) {
+plot_version_uptime_boxplot <- function(start, end, path, limit=0) {
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
 
@@ -274,9 +280,11 @@ plot_version_uptime_boxplot <- function(start, end, path) {
   rs <- dbSendQuery(con, q)
   versionuptime <- fetch(rs,n=-1)
 
+  limit = ifelse(limit==0, max(versionuptime$uptime), limit)
+
   ggplot(versionuptime, aes(y=uptime, x=version, fill=version)) +
     geom_boxplot(outlier.size=1) +
-    scale_y_continuous(name="Uptime (days)") +
+    scale_y_continuous(name="Uptime (days)", limits=c(0, limit)) +
     scale_x_discrete(name="Version") +
     opts(title="Version uptime")
 
@@ -287,7 +295,7 @@ plot_version_uptime_boxplot <- function(start, end, path) {
   dbUnloadDriver(drv)
 }
 
-plot_platform_uptime_boxplot <- function(start, end, path)  {
+plot_platform_uptime_boxplot <- function(start, end, path, limit=0)  {
 
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
@@ -309,9 +317,11 @@ plot_platform_uptime_boxplot <- function(start, end, path)  {
   rs <- dbSendQuery(con, q)
   platformsuptime <- fetch(rs,n=-1)
 
+  limit = ifelse(limit==0, max(platformsuptime$uptime), limit)
+
   ggplot(platformsuptime, aes(y=uptime, x=platform, fill=platform))  +
     geom_boxplot(outlier.size=1) +
-    scale_y_continuous(name="Uptime (days)") +
+    scale_y_continuous(name="Uptime (days)", limits=c(0, limit)) +
     scale_x_discrete(name="Platform") +
     opts(title="Platform uptime")
 
@@ -378,9 +388,11 @@ plot_bandwidth_platforms_piechart <- function(start, end, path)  {
 
   ggplot(bandwidth, aes(x="", y=bandwidthsum, fill=platform)) +
     geom_bar() +
-    scale_y_continuous(name="") +
-    scale_x_discrete(name="") +
-    scale_colour_brewer(name="Platform") +
+    scale_y_continuous(name="", labels=NULL, breaks=NULL) +
+    scale_x_discrete(name="", labels=NULL, breaks=NULL) +
+    scale_fill_brewer(name="Platform",
+        breaks=c("Windows","Linux","FreeBSD","Darwin","other"),
+        labels=c("lol", "hii", "hbs", "sdcs", "sdcsc")) +
     coord_polar("y") +
     opts(title="Bandwidth distribution per platform")
 
