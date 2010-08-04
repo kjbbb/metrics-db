@@ -33,7 +33,7 @@ plot_bandwidth_platforms_piechart <- function(start, end, path)  {
   platforms_pct = as.vector(length(platforms))
   for (p in 1:length(platforms)) {
     platforms_pct[p] <- paste(platforms[p],
-        " - ", bw$bwsum[bw$platform == platforms[p]],"%", sep="")
+        " (", bw$bwsum[bw$platform == platforms[p]],"%)", sep="")
   }
 
   ggplot(bw, aes(x="", y=bwsum, fill=platform)) +
@@ -80,8 +80,8 @@ plot_bandwidth_guardexit_piechart <- function(start, end, path) {
   #Specify the labels with the percentages concatenated to the end
   guardexit_pct = as.vector(length(guardexit))
   for (p in 1:length(guardexit)) {
-    guardexit_pct[p] <- paste(" - ",
-        bw$bwsum[bw$guardexit == guardexit[p]],"%", sep="")
+    guardexit_pct[p] <- paste(" (",
+        bw$bwsum[bw$guardexit == guardexit[p]],"%)", sep="")
   }
   ggplot(bw, aes(x="", y=bwsum, fill=guardexit)) +
     geom_bar() +
@@ -130,7 +130,7 @@ plot_bandwidth_versions_piechart <- function(start, end, path) {
   versions_pct = as.vector(length(versions))
   for (p in 1:length(versions)) {
     versions_pct[p] <- paste(versions[p],
-        " - ", bw$bwsum[bw$version == versions[p]],"%", sep="")
+        " (", bw$bwsum[bw$version == versions[p]],"%)", sep="")
   }
 
   ggplot(bw, aes(x="", y=bwsum, fill=version)) +
