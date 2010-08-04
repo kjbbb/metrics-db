@@ -19,7 +19,9 @@ plot_bandwidth_versions_boxplot <- function(start, end, path, limit=0) {
     geom_boxplot(outlier.size=1) +
     scale_y_continuous(name="Bandwidth (Mbit/s)", limits=c(0, limit)) +
     scale_x_discrete(name="Version") +
-    opts(title="Bandwidth per version")
+    opts(title=paste("Bandwidth per version ",
+        ifelse(limit!=max(bandwidth$bandwidthavg),
+            paste("(limit: ",limit," Mbit/s)", sep=""),""), sep=""))
 
   ggsave(filename=path, width=8, height=5, dpi=72)
 
@@ -53,7 +55,9 @@ plot_bandwidth_platforms_boxplot <- function(start, end, path, limit=0)  {
     geom_boxplot(outlier.size=1) +
     scale_y_continuous(name="Bandwidth (Mbit/s)", limits=c(0, limit)) +
     scale_x_discrete(name="Platform") +
-    opts(title="Bandwidth per platform")
+    opts(title=paste("Bandwidth per platform ",
+        ifelse(limit!=max(bandwidth$bandwidthavg),
+            paste("(limit: ",limit," Mbit/s)", sep=""),""), sep=""))
 
   ggsave(filename=path, width=8, height=5, dpi=72)
 
@@ -101,7 +105,9 @@ plot_exit_uptime_boxplot <- function(start, end, path, limit=0) {
     scale_x_discrete(name="Guard/Exit flags") +
     scale_fill_brewer(name="Guard/exit flags",
         breaks=breaks, labels=labels) +
-    opts(title="Guard, exit, and relay uptime")
+    opts(title=paste("Guard, exit, and relay uptime ",
+        ifelse(limit!=max(exituptime$uptime),
+            paste("(limit: ",limit," days)", sep=""),""), sep=""))
 
   ggsave(filename=path, width=8, height=5, dpi=72)
 
@@ -132,7 +138,9 @@ plot_version_uptime_boxplot <- function(start, end, path, limit=0) {
     geom_boxplot(outlier.size=1) +
     scale_y_continuous(name="Uptime (days)", limits=c(0, limit)) +
     scale_x_discrete(name="Version") +
-    opts(title="Version uptime")
+    opts(title=paste("Version uptime ",
+        ifelse(limit!=max(versionuptime$uptime),
+            paste("(limit: ",limit," days)", sep=""),""), sep=""))
 
   ggsave(filename=path, width=8, height=5, dpi=72)
 
@@ -183,7 +191,9 @@ plot_platform_uptime_boxplot <- function(start, end, path, limit=0)  {
     scale_x_discrete(name="Platform") +
     scale_fill_brewer(name="Platform",
         breaks=breaks, labels=labels) +
-    opts(title="Platform uptime")
+    opts(title=paste("Platform uptime ",
+        ifelse(limit!=max(puptime$uptime),
+            paste("(limit: ",limit," days)", sep=""),""), sep=""))
 
   ggsave(filename=path, width=8, height=5, dpi=72)
 
