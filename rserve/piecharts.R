@@ -7,7 +7,8 @@ plot_bandwidth_platforms_piechart <- function(start, end, path)  {
     "      (case when platform like '%Windows%' then 'Windows' ",
     "      when platform like '%Linux%' then 'Linux' ",
     "      when platform like '%FreeBSD%' then 'FreeBSD' ",
-    "      when platform like '%Darwin%' then 'Darwin' else 'Other' end) as platform ",
+    "      when platform like '%Darwin%' then 'Darwin' else 'Other' end) ",
+    "          as platform ",
     " from descriptor d ",
     " join statusentry s on d.descriptor=s.descriptor ",
     " where bandwidthavg is not null ",
@@ -16,7 +17,8 @@ plot_bandwidth_platforms_piechart <- function(start, end, path)  {
     " group by (case when platform like '%Windows%' then 'Windows' ",
     "      when platform like '%Linux%' then 'Linux' ",
     "      when platform like '%FreeBSD%' then 'FreeBSD' ",
-    "      when platform like '%Darwin%' then 'Darwin' else 'Other' end)", sep="")
+    "      when platform like '%Darwin%' then 'Darwin' else 'Other' end)",
+        sep="")
 
   rs <- dbSendQuery(con, q)
   bw <- fetch(rs,n=-1)
@@ -78,21 +80,21 @@ plot_bandwidth_guardexit_piechart <- function(start, end, path) {
   #Specify the labels with the percentages concatenated to the end
   guardexit_pct = as.vector(length(guardexit))
   for (p in 1:length(guardexit)) {
-    guardexit_pct[p] <- paste(guardexit[p],
-        " - ", bw$bwsum[bw$guardexit == guardexit[p]],"%", sep="")
+    guardexit_pct[p] <- paste(" - ",
+        bw$bwsum[bw$guardexit == guardexit[p]],"%", sep="")
   }
-  ggplot(bandwidth, aes(x="", y=bandwidthsum, fill=guardexit)) +
+  ggplot(bw, aes(x="", y=bwsum, fill=guardexit)) +
     geom_bar() +
     scale_y_continuous(name="") +
     scale_x_discrete(name="") +
     scale_fill_brewer(name="Guard/exit flags",
         breaks=c("tt", "tf", "ft", "ff"),
-        labels=c(paste("Guard and Exit - ",guardexit[1],"%",sep=""),
-            paste("Guard and no Exit - ",guardexit[2],"%",sep=""),
-            paste("No Exit and Guard",guardexit[3],"%",sep=""),
-            paste("No Guard and no Exit",guardexit[4],"%",sep=""))) +
+        labels=c(paste("Guard and Exit - ",guardexit_pct[1],sep=""),
+            paste("Guard and no Exit - ",guardexit_pct[2],sep=""),
+            paste("No Guard and Exit",guardexit_pct[3],sep=""),
+            paste("No Guard and no Exit",guardexit_pct[4],sep=""))) +
     coord_polar("y") +
-    opts(title="Bandwidth distribution per guard/exit/relay flags")
+    opts(title="Bandwidth distribution per guard and exit flags")
 
   ggsave(filename=path, width=8, height=5, dpi=72)
 
@@ -110,7 +112,7 @@ plot_bandwidth_versions_piechart <- function(start, end, path) {
     "    substring(d.platform, 5, 5) as version ",
     "from descriptor d ",
     "join statusentry s on d.descriptor=s.descriptor ",
-    "where d.bandwidth is not null ",
+    "where d.bandwidthavg is not null ",
     "    and date(s.validafter) >= '",start,"' ",
     "    and date(s.validafter) <= '",end,"' ",
     "group by substring(d.platform, 5, 5)", sep="")
@@ -131,14 +133,14 @@ plot_bandwidth_versions_piechart <- function(start, end, path) {
         " - ", bw$bwsum[bw$version == versions[p]],"%", sep="")
   }
 
-  ggplot(bandwidth, aes(x="", y=bandwidthsum, fill=version)) +
-    geom_bar(position="dodge") +
+  ggplot(bw, aes(x="", y=bwsum, fill=version)) +
+    geom_bar() +
     scale_y_continuous(name="") +
     scale_x_discrete(name="Version") +
     scale_fill_brewer(name="Version",
-        labels=versions,
-        breaks=versions_pct) +
-    coorc_polar("y") +
+        breaks=versions,
+        labels=versions_pct) +
+    coord_polar("y") +
     opts(title="Bandwidth distribution per version")
 
   ggsave(filename=path, width=8, height=5, dpi=72)
@@ -147,6 +149,3 @@ plot_bandwidth_versions_piechart <- function(start, end, path) {
   dbDisconnect(con)
   dbUnloadDriver(drv)
 }
-
-
-
