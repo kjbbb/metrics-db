@@ -168,141 +168,305 @@ CREATE TRIGGER mirror_statusentry AFTER INSERT OR UPDATE OR DELETE ON statusentr
 CREATE TRIGGER mirror_descriptor AFTER INSERT OR UPDATE OR DELETE ON descriptor
     FOR EACH ROW EXECUTE PROCEDURE mirror_descriptor();
 
-----Views----
---Network size
-CREATE VIEW network_size_v AS
-    SELECT
-        DATE(validafter),
-        COUNT(*) / relay_statuses_per_day.count AS avg_running,
-        SUM(CASE WHEN isexit IS TRUE THEN 1 ELSE 0 END)
-            / relay_statuses_per_day.count AS avg_exit,
-        SUM(CASE WHEN isguard IS TRUE THEN 1 ELSE 0 END)
-            / relay_statuses_per_day.count AS avg_guard
-    FROM statusentry
-    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-        FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
-        GROUP BY DATE(validafter)) relay_statuses_per_day
-    ON DATE(validafter) = relay_statuses_per_day.date
-    WHERE DATE(validafter) = relay_statuses_per_day.date
-    GROUP BY DATE(validafter), relay_statuses_per_day.count
-    ORDER BY DATE(validafter);
+CREATE TABLE network_size (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    avg_running INTEGER NOT NULL,
+    avg_exit INTEGER NOT NULL,
+    avg_guard INTEGER NOT NULL
+);
 
---Relay platforms
---TODO more specific string handling
---TODO account for 'other' platforms
-CREATE VIEW relay_platforms_v AS
-    SELECT
-        DATE(validafter),
-        SUM(CASE WHEN platform LIKE '%Linux%' THEN 1 ELSE 0 END) /
-            relay_statuses_per_day.count AS avg_linux,
-        SUM(CASE WHEN platform LIKE '%Darwin%' THEN 1 ELSE 0 END) /
-            relay_statuses_per_day.count AS avg_darwin,
-        SUM(CASE WHEN platform LIKE '%BSD%' THEN 1 ELSE 0 END) /
-            relay_statuses_per_day.count AS avg_bsd,
-        SUM(CASE WHEN platform LIKE '%Windows%' THEN 1 ELSE 0 END) /
-            relay_statuses_per_day.count AS avg_windows,
-        SUM(CASE WHEN platform NOT LIKE '%Windows%'
-            AND platform NOT LIKE '%Darwin%'
-            AND platform NOT LIKE '%BSD%'
-            AND platform NOT LIKE '%Linux%' THEN 1 ELSE 0 END) /
-            relay_statuses_per_day.count AS avg_other
-    FROM descriptor_statusentry
-    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-            FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
-            GROUP BY DATE(validafter)) relay_statuses_per_day
-    ON DATE(validafter) = relay_statuses_per_day.date
-    GROUP BY DATE(validafter), relay_statuses_per_day.count
-    ORDER BY DATE(validafter);
+CREATE TABLE relay_platforms (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    avg_linux INTEGER NOT NULL,
+    avg_darwin INTEGER NOT NULL,
+    avg_bsd INTEGER NOT NULL,
+    avg_windows INTEGER NOT NULL,
+    avg_other INTEGER NOT NULL
+);
 
---Relay versions
-CREATE VIEW relay_versions_v AS
-  SELECT
-    DATE(validafter),
-    SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.1.2' THEN 1 ELSE 0 END)
-        / relay_statuses_per_day.count AS "0.1.2",
-    SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.0' THEN 1 ELSE 0 END)
-        /relay_statuses_per_day.count AS "0.2.0",
-    SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.1' THEN 1 ELSE 0 END)
-        /relay_statuses_per_day.count AS "0.2.1",
-    SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.2' THEN 1 ELSE 0 END)
-        /relay_statuses_per_day.count AS "0.2.2"
-  FROM descriptor_statusentry
-  JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-          FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
-          GROUP BY DATE(validafter)) relay_statuses_per_day
-  ON DATE(validafter) = relay_statuses_per_day.date
-  GROUP BY DATE(validafter), relay_statuses_per_day.count
-  ORDER BY DATE(validafter);
+CREATE TABLE relay_versions (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    "0.1.2" INTEGER NOT NULL,
+    "0.2.0" INTEGER NOT NULL,
+    "0.2.1" INTEGER NOT NULL,
+    "0.2.2" INTEGER NOT NULL
+);
 
---Relay churn histogram
---TODO fix this.
-CREATE VIEW relay_churn_v AS
-    SELECT DATE_TRUNC('month', validafter) AS first_day, descriptor
-    FROM statusentry
-    WHERE DATE(validafter) IN (
-        SELECT DATE(MIN(validafter))
-        FROM statusentry
-        WHERE isrunning IS true
-        GROUP BY DATE_TRUNC('month', validafter))
-    AND isrunning IS true
-    GROUP BY DATE_TRUNC('month', validafter), descriptor;
+CREATE TABLE relay_uptime (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    uptime INTEGER NOT NULL,
+    stddev INTEGER NOT NULL
+);
 
-CREATE VIEW relay_churn_seen_v AS
-    SELECT DATE(statusentry.validafter), statusentry.descriptor
-    FROM statusentry, relay_churn_v
-    WHERE DATE_TRUNC('month', statusentry.validafter) = relay_churn_v.first_day
-    AND statusentry.descriptor=relay_churn_v.descriptor
-    GROUP BY DATE(statusentry.validafter), statusentry.descriptor;
+CREATE TABLE relay_bandwidth (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    bwavg BIGINT NOT NULL,
+    bwburst BIGINT NOT NULL,
+    bwobserved BIGINT NOT NULL
+);
 
-CREATE VIEW relay_hist_v AS
-    SELECT COUNT(*) AS days, DATE_TRUNC('month', date) AS month
-    FROM relay_churn_seen_v
-    GROUP BY DATE_TRUNC('month', date), descriptor;
+CREATE TABLE total_bandwidth (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    bwavg BIGINT NOT NULL,
+    bwburst BIGINT NOT NULL,
+    bwobserved BIGINT NOT NULL
+);
 
---Avg node uptime in seconds by day (in seconds)
-CREATE VIEW relay_uptime_v AS
-    SELECT (AVG(uptime) / relay_statuses_per_day.count)::INT AS uptime,
-        (STDDEV(uptime) / relay_statuses_per_day.count)::INT AS stddev,
-        DATE(validafter)
-    FROM descriptor_statusentry
-    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-        FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
-        GROUP BY DATE(validafter)) relay_statuses_per_day
-    ON DATE(validafter) = relay_statuses_per_day.date
-    WHERE validafter IS NOT NULL
-    GROUP BY DATE(validafter), relay_statuses_per_day.count
-    ORDER BY DATE(validafter);
+CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
+    DECLARE
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_network_size_time network_size.date%TYPE;
+    BEGIN
 
---Avg node bandwidth by day (in bytes per second)
-CREATE VIEW relay_bandwidth_v AS
-    SELECT (AVG(bandwidthavg)
-            / relay_statuses_per_day.count)::INT AS bwavg,
-        (AVG(bandwidthburst)
-            / relay_statuses_per_day.count)::INT AS bwburst,
-        (AVG(bandwidthobserved)
-            / relay_statuses_per_day.count)::INT AS bwobserved,
-        DATE(validafter)
-    FROM descriptor_statusentry
-    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+        SELECT MAX(validafter)
+        INTO max_statusentry_time
+        FROM statusentry;
+
+        SELECT MAX(date)
+        INTO max_network_size_time
+        FROM network_size;
+
+        IF max_network_size_time IS NULL THEN
+            max_network_size_time := date '1970-01-01';
+        END IF;
+
+        --If the difference in time from the latest status entry and aggregated
+        --network size table is greater than an hour, then recreate data from
+        --that day, or create a new day.
+        IF EXTRACT('epoch' from (max_statusentry_time - max_network_size_time))/3600 > 0 THEN
+            INSERT INTO network_size
+            (date, avg_running, avg_exit, avg_guard)
+            SELECT
+                DATE(validafter) as date,
+                COUNT(*) / relay_statuses_per_day.count AS avg_running,
+                SUM(CASE WHEN isexit IS TRUE THEN 1 ELSE 0 END)
+                    / relay_statuses_per_day.count AS avg_exit,
+                SUM(CASE WHEN isguard IS TRUE THEN 1 ELSE 0 END)
+                    / relay_statuses_per_day.count AS avg_guard
+            FROM statusentry
+            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
                 FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
                 GROUP BY DATE(validafter)) relay_statuses_per_day
-    ON DATE(validafter) = relay_statuses_per_day.date
-    WHERE validafter IS NOT NULL
-    GROUP BY DATE(validafter), relay_statuses_per_day.count;
+            ON DATE(validafter) = relay_statuses_per_day.date
+            WHERE DATE(validafter) = relay_statuses_per_day.date
+                AND DATE(validafter) > max_network_size_time
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
+        END IF;
+        RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
 
---Total advertised bandwidth of the network by day (in bytes per second)
-CREATE VIEW total_bandwidth_v AS
-    SELECT (SUM(bandwidthavg)
-            / relay_statuses_per_day.count)::BIGINT AS bwavg,
-        (SUM(bandwidthburst)
-            / relay_statuses_per_day.count)::BIGINT AS bwburst,
-        (SUM(bandwidthobserved)
-            / relay_statuses_per_day.count)::BIGINT AS bwobserved,
-        DATE(validafter)
-    FROM descriptor_statusentry
-    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
+    DECLARE
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_relay_platforms_time relay_platforms.date%TYPE;
+    BEGIN
+
+        SELECT MAX(validafter)
+        INTO max_statusentry_time
+        FROM statusentry;
+
+        SELECT MAX(date)
+        INTO max_relay_platforms_time
+        FROM relay_platforms;
+
+        IF max_relay_platforms_time IS NULL THEN
+            max_relay_platforms_time := date '1970-01-01';
+        END IF;
+
+        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_platforms_time))/3600 > 0 THEN
+            INSERT INTO relay_platforms
+            (date, avg_linux, avg_darwin, avg_bsd, avg_windows, avg_other)
+            SELECT DATE(validafter),
+                SUM(CASE WHEN platform LIKE '%Linux%' THEN 1 ELSE 0 END) /
+                    relay_statuses_per_day.count AS avg_linux,
+                SUM(CASE WHEN platform LIKE '%Darwin%' THEN 1 ELSE 0 END) /
+                    relay_statuses_per_day.count AS avg_darwin,
+                SUM(CASE WHEN platform LIKE '%BSD%' THEN 1 ELSE 0 END) /
+                    relay_statuses_per_day.count AS avg_bsd,
+                SUM(CASE WHEN platform LIKE '%Windows%' THEN 1 ELSE 0 END) /
+                    relay_statuses_per_day.count AS avg_windows,
+                SUM(CASE WHEN platform NOT LIKE '%Windows%'
+                    AND platform NOT LIKE '%Darwin%'
+                    AND platform NOT LIKE '%BSD%'
+                    AND platform NOT LIKE '%Linux%' THEN 1 ELSE 0 END) /
+                    relay_statuses_per_day.count AS avg_other
+            FROM descriptor_statusentry
+            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                    FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
+                    GROUP BY DATE(validafter)) relay_statuses_per_day
+            ON DATE(validafter) = relay_statuses_per_day.date
+            WHERE DATE(validafter) > max_relay_platforms_time
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
+        END IF;
+        RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
+    DECLARE
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_relay_versions_time relay_versions.date%TYPE;
+    BEGIN
+
+        SELECT MAX(validafter)
+        INTO max_statusentry_time
+        FROM statusentry;
+
+        SELECT MAX(date)
+        INTO max_relay_versions_time
+        FROM relay_versions;
+
+        IF max_relay_versions_time IS NULL THEN
+            max_relay_versions_time := date '1970-01-01';
+        END IF;
+
+        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_versions_time))/3600 > 0 THEN
+            INSERT INTO relay_versions
+            (date, "0.1.2", "0.2.0", "0.2.1", "0.2.2")
+            SELECT DATE(validafter),
+                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.1.2' THEN 1 ELSE 0 END)
+                    / relay_statuses_per_day.count AS "0.1.2",
+                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.0' THEN 1 ELSE 0 END)
+                    /relay_statuses_per_day.count AS "0.2.0",
+                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.1' THEN 1 ELSE 0 END)
+                    /relay_statuses_per_day.count AS "0.2.1",
+                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.2' THEN 1 ELSE 0 END)
+                    /relay_statuses_per_day.count AS "0.2.2"
+            FROM descriptor_statusentry
+            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                    FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                    GROUP BY DATE(validafter)) relay_statuses_per_day
+            ON DATE(validafter) = relay_statuses_per_day.date
+            WHERE DATE(validafter) > max_relay_versions_time
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
+        END IF;
+        RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION refresh_relay_uptime() RETURNS INTEGER AS $$
+    DECLARE
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_relay_uptime_time relay_uptime.date%TYPE;
+    BEGIN
+
+        SELECT MAX(validafter)
+        INTO max_statusentry_time
+        FROM statusentry;
+
+        SELECT MAX(date)
+        INTO max_relay_uptime_time
+        FROM relay_uptime;
+
+        IF max_relay_uptime_time IS NULL THEN
+            max_relay_uptime_time := date '1970-01-01';
+        END IF;
+
+        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_uptime_time))/3600 > 0 THEN
+            INSERT INTO relay_uptime
+            (uptime, stddev, date)
+            SELECT (AVG(uptime) / relay_statuses_per_day.count)::INT AS uptime,
+                (STDDEV(uptime) / relay_statuses_per_day.count)::INT AS stddev,
+                DATE(validafter)
+            FROM descriptor_statusentry
+            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
                 FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
                 GROUP BY DATE(validafter)) relay_statuses_per_day
-    ON DATE(validafter) = relay_statuses_per_day.date
-    WHERE validafter IS NOT NULL
-    GROUP BY DATE(validafter), relay_statuses_per_day.count;
+            ON DATE(validafter) = relay_statuses_per_day.date
+            WHERE validafter IS NOT NULL
+                AND DATE(validafter) > max_relay_uptime_time
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
+        END IF;
+        RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() RETURNS INTEGER AS $$
+    DECLARE
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_relay_bandwidth_time relay_bandwidth.date%TYPE;
+    BEGIN
+
+        SELECT DATE(MAX(validafter))
+        INTO max_statusentry_time
+        FROM statusentry;
+
+        SELECT DATE(MAX(date))
+        INTO max_relay_bandwidth_time
+        FROM relay_bandwidth;
+
+        IF max_relay_bandwidth_time IS NULL THEN
+            max_relay_bandwidth_time := date '1970-01-01';
+        END IF;
+
+        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_bandwidth_time))/3600 > 0 THEN
+            INSERT INTO relay_bandwidth
+            (bwavg, bwburst, bwobserved, date)
+            SELECT (AVG(bandwidthavg)
+                    / relay_statuses_per_day.count)::INT AS bwavg,
+                (AVG(bandwidthburst)
+                    / relay_statuses_per_day.count)::INT AS bwburst,
+                (AVG(bandwidthobserved)
+                    / relay_statuses_per_day.count)::INT AS bwobserved,
+                DATE(validafter)
+            FROM descriptor_statusentry
+            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                        FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                        GROUP BY DATE(validafter)) relay_statuses_per_day
+            ON DATE(validafter) = relay_statuses_per_day.date
+            WHERE validafter IS NOT NULL
+                AND DATE(validafter) > max_relay_bandwidth_time
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
+        END IF;
+        RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
+    DECLARE
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_total_bandwidth_time total_bandwidth.date%TYPE;
+    BEGIN
+
+        SELECT DATE(MAX(validafter))
+        INTO max_statusentry_time
+        FROM statusentry;
+
+        SELECT DATE(MAX(date))
+        INTO max_total_bandwidth_time
+        FROM total_bandwidth;
+
+        IF max_total_bandwidth_time IS NULL THEN
+            max_total_bandwidth_time := date '1970-01-01';
+        END IF;
+
+        IF EXTRACT('epoch' from (max_statusentry_time - max_total_bandwidth_time))/3600 > 0 THEN
+            INSERT INTO total_bandwidth
+            (bwavg, bwburst, bwobserved, date)
+            SELECT (SUM(bandwidthavg)
+                    / relay_statuses_per_day.count)::BIGINT AS bwavg,
+                (SUM(bandwidthburst)
+                    / relay_statuses_per_day.count)::BIGINT AS bwburst,
+                (SUM(bandwidthobserved)
+                    / relay_statuses_per_day.count)::BIGINT AS bwobserved,
+                DATE(validafter)
+            FROM descriptor_statusentry
+            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                        FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                        GROUP BY DATE(validafter)) relay_statuses_per_day
+            ON DATE(validafter) = relay_statuses_per_day.date
+            WHERE validafter IS NOT NULL
+                AND DATE(validafter) > max_total_bandwidth_time
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
+        END IF;
+        RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+GRANT INSERT, SELECT, UPDATE, DELETE
+ON descriptor, statusentry, descriptor_statusentry,
+    network_size, relay_platforms, relay_versions, relay_uptime,
+    relay_bandwidth, total_bandwidth, bridge_stats, gettor_stats,
+    torperf_stats
+TO ernie;
