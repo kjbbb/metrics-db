@@ -350,3 +350,47 @@ CREATE VIEW total_bandwidth_v AS
     ON DATE(validafter) = relay_statuses_per_day.date
     WHERE validafter IS NOT NULL
     GROUP BY DATE(validafter), relay_statuses_per_day.count;
+
+CREATE TABLE network_size (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    avg_running INTEGER NOT NULL,
+    avg_exit INTEGER NOT NULL,
+    avg_guard INTEGER NOT NULL
+);
+
+CREATE TABLE relay_platforms (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    avg_linux INTEGER NOT NULL,
+    avg_darwin INTEGER NOT NULL,
+    avg_bsd INTEGER NOT NULL,
+    avg_windows INTEGER NOT NULL,
+    avg_other INTEGER NOT NULL
+);
+
+CREATE TABLE relay_versions (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    '0.1.2' INTEGER NOT NULL,
+    '0.2.0' INTEGER NOT NULL,
+    '0.2.1' INTEGER NOT NULL,
+    '0.2.2' INTEGER NOT NULL
+);
+
+CREATE TABLE relay_uptime (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    uptime INTEGER NOT NULL,
+    stddev INTEGER NOT NULL
+);
+
+CREATE TABLE relay_bandwidth (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    bwavg INTEGER NOT NULL,
+    bwburst INTEGER NOT NULL,
+    bwobserved INTEGER NOT NULL
+);
+
+CREATE TABLE total_bandwidth (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    bwavg INTEGER NOT NULL,
+    bwburst INTEGER NOT NULL,
+    bwobserved INTEGER NOT NULL
+);
