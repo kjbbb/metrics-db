@@ -256,7 +256,6 @@ CREATE TABLE total_bandwidth (
     bwobserved INTEGER NOT NULL
 );
 
-
 CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
     DECLARE
         max_statusentry_date statusentry.validafter%TYPE;
@@ -265,37 +264,36 @@ CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
 
         SELECT DATE(MAX(validafter))
         INTO max_statusentry_date
-        FROM statusentry
-        LIMIT 1;
+        FROM statusentry;
 
         SELECT DATE(MAX(date))
         INTO max_network_size_date
-        FROM network_size
-        LIMIT 1;
+        FROM network_size;
 
         IF max_statusentry_date - max_network_size_date > 0 THEN
+            INSERT INTO network_size
+            (date, avg_running, avg_exit, avg_guard)
             SELECT
-                DATE(validafter),
+                DATE(validafter) as date,
                 COUNT(*) / relay_statuses_per_day.count AS avg_running,
                 SUM(CASE WHEN isexit IS TRUE THEN 1 ELSE 0 END)
                     / relay_statuses_per_day.count AS avg_exit,
                 SUM(CASE WHEN isguard IS TRUE THEN 1 ELSE 0 END)
                     / relay_statuses_per_day.count AS avg_guard
-            INTO network_size
             FROM statusentry
             JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
+                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
                 GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
             WHERE DATE(validafter) = relay_statuses_per_day.date
                 AND DATE(validafter) > max_network_size_date
-            GROUP BY DATE(validafter), relay_statuses_per_day.count
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
-        RETURN;
+        RETURN 1;
     END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION refresh_relay_platforms() AS $$
+CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
     DECLARE
         max_statusentry_date statusentry.validafter%TYPE;
         max_relay_platforms_date relay_platforms.date%TYPE;
@@ -303,17 +301,16 @@ CREATE OR REPLACE FUNCTION refresh_relay_platforms() AS $$
 
         SELECT DATE(MAX(validafter))
         INTO max_statusentry_date
-        FROM statusentry
-        LIMIT 1;
+        FROM statusentry;
 
         SELECT DATE(MAX(date))
         INTO max_relay_platforms_date
-        FROM relay_platforms
-        LIMIT 1;
+        FROM relay_platforms;
 
         IF max_statusentry_date - max_relay_platforms_date > 0 THEN
-            SELECT
-                DATE(validafter),
+            INSERT INTO relay_platforms
+            (date, avg_linux, avg_darwin, avg_bsd, avg_windows, avg_other)
+            SELECT DATE(validafter),
                 SUM(CASE WHEN platform LIKE '%Linux%' THEN 1 ELSE 0 END) /
                     relay_statuses_per_day.count AS avg_linux,
                 SUM(CASE WHEN platform LIKE '%Darwin%' THEN 1 ELSE 0 END) /
@@ -327,20 +324,19 @@ CREATE OR REPLACE FUNCTION refresh_relay_platforms() AS $$
                     AND platform NOT LIKE '%BSD%'
                     AND platform NOT LIKE '%Linux%' THEN 1 ELSE 0 END) /
                     relay_statuses_per_day.count AS avg_other
-            INTO relay_platforms
             FROM descriptor_statusentry
             JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
                     FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
                     GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
             WHERE DATE(validafter) > max_relay_platforms_date
-            GROUP BY DATE(validafter), relay_statuses_per_day.count
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
-        RETURN;
+        RETURN 1;
     END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION refresh_relay_versions() AS $$
+CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
     DECLARE
         max_statusentry_date statusentry.validafter%TYPE;
         max_relay_versions_date relay_versions.date%TYPE;
@@ -348,39 +344,37 @@ CREATE OR REPLACE FUNCTION refresh_relay_versions() AS $$
 
         SELECT DATE(MAX(validafter))
         INTO max_statusentry_date
-        FROM statusentry
-        LIMIT 1;
+        FROM statusentry;
 
         SELECT DATE(MAX(date))
         INTO max_relay_versions_date
-        FROM relay_versions
-        LIMIT 1;
+        FROM relay_versions;
 
         IF max_statusentry_date - max_relay_versions_date > 0 THEN
-            SELECT
-              DATE(validafter),
-              SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.1.2' THEN 1 ELSE 0 END)
-                  / relay_statuses_per_day.count AS "0.1.2",
-              SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.0' THEN 1 ELSE 0 END)
-                  /relay_statuses_per_day.count AS "0.2.0",
-              SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.1' THEN 1 ELSE 0 END)
-                  /relay_statuses_per_day.count AS "0.2.1",
-              SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.2' THEN 1 ELSE 0 END)
-                  /relay_statuses_per_day.count AS "0.2.2"
-            INTO relay_versions
+            INSERT INTO relay_versions
+            ("0.1.2", "0.2.0", "0.2.1", "0.2.2")
+            SELECT DATE(validafter),
+                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.1.2' THEN 1 ELSE 0 END)
+                    / relay_statuses_per_day.count AS "0.1.2",
+                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.0' THEN 1 ELSE 0 END)
+                    /relay_statuses_per_day.count AS "0.2.0",
+                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.1' THEN 1 ELSE 0 END)
+                    /relay_statuses_per_day.count AS "0.2.1",
+                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.2' THEN 1 ELSE 0 END)
+                    /relay_statuses_per_day.count AS "0.2.2"
             FROM descriptor_statusentry
             JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
                     FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
                     GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
             WHERE DATE(validafter) > max_relay_versions_date
-            GROUP BY DATE(validafter), relay_statuses_per_day.count
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
-        RETURN;
+        RETURN 1;
     END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION refresh_relay_uptime() AS $$
+CREATE OR REPLACE FUNCTION refresh_relay_uptime() RETURNS INTEGER AS $$
     DECLARE
         max_statusentry_date statusentry.validafter%TYPE;
         max_relay_uptime_date relay_uptime.date%TYPE;
@@ -388,33 +382,32 @@ CREATE OR REPLACE FUNCTION refresh_relay_uptime() AS $$
 
         SELECT DATE(MAX(validafter))
         INTO max_statusentry_date
-        FROM statusentry
-        LIMIT 1;
+        FROM statusentry;
 
         SELECT DATE(MAX(date))
         INTO max_relay_uptime_date
-        FROM relay_uptime
-        LIMIT 1;
+        FROM relay_uptime;
 
         IF max_statusentry_date - max_relay_uptime_date > 0 THEN
+            INSERT INTO relay_uptime
+            (uptime, stddev, date)
             SELECT (AVG(uptime) / relay_statuses_per_day.count)::INT AS uptime,
                 (STDDEV(uptime) / relay_statuses_per_day.count)::INT AS stddev,
                 DATE(validafter)
-            INTO relay_uptime
             FROM descriptor_statusentry
             JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
                 FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
                 GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
             WHERE validafter IS NOT NULL
-            GROUP BY DATE(validafter), relay_statuses_per_day.count
-            WHERE DATE(validafter) > max_relay_uptime_date
+                AND DATE(validafter) > max_relay_uptime_date
+            GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
-        RETURN;
+        RETURN 1;
     END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() AS $$
+CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() RETURNS INTEGER AS $$
     DECLARE
         max_statusentry_date statusentry.validafter%TYPE;
         max_relay_bandwidth_date relay_bandwidth.date%TYPE;
@@ -422,15 +415,15 @@ CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() AS $$
 
         SELECT DATE(MAX(validafter))
         INTO max_statusentry_date
-        FROM statusentry
-        LIMIT 1;
+        FROM statusentry;
 
         SELECT DATE(MAX(date))
         INTO max_relay_bandwidth_date
-        FROM relay_bandwidth
-        LIMIT 1;
+        FROM relay_bandwidth;
 
         IF max_statusentry_date - max_relay_bandwidth_date > 0 THEN
+            INSERT INTO relay_bandwidth
+            (bwavg, bwburst, bwobserved, date)
             SELECT (AVG(bandwidthavg)
                     / relay_statuses_per_day.count)::INT AS bwavg,
                 (AVG(bandwidthburst)
@@ -438,7 +431,6 @@ CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() AS $$
                 (AVG(bandwidthobserved)
                     / relay_statuses_per_day.count)::INT AS bwobserved,
                 DATE(validafter)
-            INTO relay_bandwidth
             FROM descriptor_statusentry
             JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
                         FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
@@ -448,11 +440,11 @@ CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() AS $$
                 AND DATE(validafter) > max_relay_bandwidth_date
             GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
-        RETURN;
+        RETURN 1;
     END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION refresh_total_bandwidth() AS $$
+CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     DECLARE
         max_statusentry_date statusentry.validafter%TYPE;
         max_total_bandwidth_date total_bandwidth.date%TYPE;
@@ -460,15 +452,15 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() AS $$
 
         SELECT DATE(MAX(validafter))
         INTO max_statusentry_date
-        FROM statusentry
-        LIMIT 1;
+        FROM statusentry;
 
         SELECT DATE(MAX(date))
         INTO max_total_bandwidth_date
-        FROM total_bandwidth
-        LIMIT 1;
+        FROM total_bandwidth;
 
         IF max_statusentry_date - max_total_bandwidth_date > 0 THEN
+            INSERT INTO total_bandwidth
+            (bwavg, bwburst, bwobserved, date)
             SELECT (SUM(bandwidthavg)
                     / relay_statuses_per_day.count)::BIGINT AS bwavg,
                 (SUM(bandwidthburst)
@@ -476,7 +468,6 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() AS $$
                 (SUM(bandwidthobserved)
                     / relay_statuses_per_day.count)::BIGINT AS bwobserved,
                 DATE(validafter)
-            INTO total_bandwidth
             FROM descriptor_statusentry
             JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
                         FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
@@ -486,6 +477,6 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() AS $$
                 AND DATE(validafter) > max_total_bandwidth_date
             GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
-        RETURN;
+        RETURN 1;
     END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
