@@ -212,6 +212,13 @@ CREATE TRIGGER mirror_statusentry AFTER INSERT OR UPDATE OR DELETE ON statusentr
 CREATE TRIGGER mirror_descriptor AFTER INSERT OR UPDATE OR DELETE ON descriptor
     FOR EACH ROW EXECUTE PROCEDURE mirror_descriptor();
 
+CREATE TABLE network_size (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    avg_running INTEGER NOT NULL,
+    avg_exit INTEGER NOT NULL,
+    avg_guard INTEGER NOT NULL
+);
+
 CREATE TABLE relay_platforms (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     avg_linux INTEGER NOT NULL,
@@ -250,7 +257,7 @@ CREATE TABLE total_bandwidth (
 );
 
 
-CREATE OR REPLACE FUNCTION refresh_network_size() AS $$
+CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
     DECLARE
         max_statusentry_date statusentry.validafter%TYPE;
         max_network_size_date network_size.date%TYPE;
