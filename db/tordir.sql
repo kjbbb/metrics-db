@@ -270,6 +270,10 @@ CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
         INTO max_network_size_date
         FROM network_size;
 
+        IF max_network_size_date IS NULL THEN
+            max_network_size_date := date '1970-01-01';
+        END IF;
+
         IF max_statusentry_date - max_network_size_date > 0 THEN
             INSERT INTO network_size
             (date, avg_running, avg_exit, avg_guard)
@@ -306,6 +310,10 @@ CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
         SELECT DATE(MAX(date))
         INTO max_relay_platforms_date
         FROM relay_platforms;
+
+        IF max_relay_platforms_date IS NULL THEN
+            max_relay_platforms_date := date '1970-01-01';
+        END IF;
 
         IF max_statusentry_date - max_relay_platforms_date > 0 THEN
             INSERT INTO relay_platforms
@@ -350,6 +358,10 @@ CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
         INTO max_relay_versions_date
         FROM relay_versions;
 
+        IF max_relay_versions_date IS NULL THEN
+            max_relay_versions_date := date '1970-01-01';
+        END IF;
+
         IF max_statusentry_date - max_relay_versions_date > 0 THEN
             INSERT INTO relay_versions
             ("0.1.2", "0.2.0", "0.2.1", "0.2.2")
@@ -388,6 +400,10 @@ CREATE OR REPLACE FUNCTION refresh_relay_uptime() RETURNS INTEGER AS $$
         INTO max_relay_uptime_date
         FROM relay_uptime;
 
+        IF max_relay_uptime_date IS NULL THEN
+            max_relay_uptime_date := date '1970-01-01';
+        END IF;
+
         IF max_statusentry_date - max_relay_uptime_date > 0 THEN
             INSERT INTO relay_uptime
             (uptime, stddev, date)
@@ -420,6 +436,10 @@ CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() RETURNS INTEGER AS $$
         SELECT DATE(MAX(date))
         INTO max_relay_bandwidth_date
         FROM relay_bandwidth;
+
+        IF max_relay_bandwidth_date IS NULL THEN
+            max_relay_bandwidth_date := date '1970-01-01';
+        END IF;
 
         IF max_statusentry_date - max_relay_bandwidth_date > 0 THEN
             INSERT INTO relay_bandwidth
@@ -457,6 +477,10 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
         SELECT DATE(MAX(date))
         INTO max_total_bandwidth_date
         FROM total_bandwidth;
+
+        IF max_total_bandwidth_date IS NULL THEN
+            max_total_bandwidth_date := date '1970-01-01';
+        END IF;
 
         IF max_statusentry_date - max_total_bandwidth_date > 0 THEN
             INSERT INTO total_bandwidth
