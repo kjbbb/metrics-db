@@ -244,37 +244,40 @@ CREATE TABLE relay_uptime (
 
 CREATE TABLE relay_bandwidth (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    bwavg INTEGER NOT NULL,
-    bwburst INTEGER NOT NULL,
-    bwobserved INTEGER NOT NULL
+    bwavg BIGINT NOT NULL,
+    bwburst BIGINT NOT NULL,
+    bwobserved BIGINT NOT NULL
 );
 
 CREATE TABLE total_bandwidth (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    bwavg INTEGER NOT NULL,
-    bwburst INTEGER NOT NULL,
-    bwobserved INTEGER NOT NULL
+    bwavg BIGINT NOT NULL,
+    bwburst BIGINT NOT NULL,
+    bwobserved BIGINT NOT NULL
 );
 
 CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
     DECLARE
-        max_statusentry_date statusentry.validafter%TYPE;
-        max_network_size_date network_size.date%TYPE;
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_network_size_time network_size.date%TYPE;
     BEGIN
 
-        SELECT DATE(MAX(validafter))
-        INTO max_statusentry_date
+        SELECT MAX(validafter)
+        INTO max_statusentry_time
         FROM statusentry;
 
-        SELECT DATE(MAX(date))
-        INTO max_network_size_date
+        SELECT MAX(date)
+        INTO max_network_size_time
         FROM network_size;
 
-        IF max_network_size_date IS NULL THEN
-            max_network_size_date := date '1970-01-01';
+        IF max_network_size_time IS NULL THEN
+            max_network_size_time := date '1970-01-01';
         END IF;
 
-        IF max_statusentry_date - max_network_size_date > 0 THEN
+        --If the difference in time from the latest status entry and aggregated
+        --network size table is greater than an hour, then recreate data from
+        --that day, or create a new day.
+        IF EXTRACT('epoch' from (max_statusentry_time - max_network_size_time))/3600 > 0 THEN
             INSERT INTO network_size
             (date, avg_running, avg_exit, avg_guard)
             SELECT
@@ -290,7 +293,7 @@ CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
                 GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
             WHERE DATE(validafter) = relay_statuses_per_day.date
-                AND DATE(validafter) > max_network_size_date
+                AND DATE(validafter) > max_network_size_time
             GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
         RETURN 1;
@@ -299,23 +302,23 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
     DECLARE
-        max_statusentry_date statusentry.validafter%TYPE;
-        max_relay_platforms_date relay_platforms.date%TYPE;
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_relay_platforms_time relay_platforms.date%TYPE;
     BEGIN
 
-        SELECT DATE(MAX(validafter))
-        INTO max_statusentry_date
+        SELECT MAX(validafter)
+        INTO max_statusentry_time
         FROM statusentry;
 
-        SELECT DATE(MAX(date))
-        INTO max_relay_platforms_date
+        SELECT MAX(date)
+        INTO max_relay_platforms_time
         FROM relay_platforms;
 
-        IF max_relay_platforms_date IS NULL THEN
-            max_relay_platforms_date := date '1970-01-01';
+        IF max_relay_platforms_time IS NULL THEN
+            max_relay_platforms_time := date '1970-01-01';
         END IF;
 
-        IF max_statusentry_date - max_relay_platforms_date > 0 THEN
+        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_platforms_time))/3600 > 0 THEN
             INSERT INTO relay_platforms
             (date, avg_linux, avg_darwin, avg_bsd, avg_windows, avg_other)
             SELECT DATE(validafter),
@@ -337,7 +340,7 @@ CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
                     FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
                     GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
-            WHERE DATE(validafter) > max_relay_platforms_date
+            WHERE DATE(validafter) > max_relay_platforms_time
             GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
         RETURN 1;
@@ -346,25 +349,25 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
     DECLARE
-        max_statusentry_date statusentry.validafter%TYPE;
-        max_relay_versions_date relay_versions.date%TYPE;
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_relay_versions_time relay_versions.date%TYPE;
     BEGIN
 
-        SELECT DATE(MAX(validafter))
-        INTO max_statusentry_date
+        SELECT MAX(validafter)
+        INTO max_statusentry_time
         FROM statusentry;
 
-        SELECT DATE(MAX(date))
-        INTO max_relay_versions_date
+        SELECT MAX(date)
+        INTO max_relay_versions_time
         FROM relay_versions;
 
-        IF max_relay_versions_date IS NULL THEN
-            max_relay_versions_date := date '1970-01-01';
+        IF max_relay_versions_time IS NULL THEN
+            max_relay_versions_time := date '1970-01-01';
         END IF;
 
-        IF max_statusentry_date - max_relay_versions_date > 0 THEN
+        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_versions_time))/3600 > 0 THEN
             INSERT INTO relay_versions
-            ("0.1.2", "0.2.0", "0.2.1", "0.2.2")
+            (date, "0.1.2", "0.2.0", "0.2.1", "0.2.2")
             SELECT DATE(validafter),
                 SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.1.2' THEN 1 ELSE 0 END)
                     / relay_statuses_per_day.count AS "0.1.2",
@@ -379,7 +382,7 @@ CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
                     FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
                     GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
-            WHERE DATE(validafter) > max_relay_versions_date
+            WHERE DATE(validafter) > max_relay_versions_time
             GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
         RETURN 1;
@@ -388,23 +391,23 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION refresh_relay_uptime() RETURNS INTEGER AS $$
     DECLARE
-        max_statusentry_date statusentry.validafter%TYPE;
-        max_relay_uptime_date relay_uptime.date%TYPE;
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_relay_uptime_time relay_uptime.date%TYPE;
     BEGIN
 
-        SELECT DATE(MAX(validafter))
-        INTO max_statusentry_date
+        SELECT MAX(validafter)
+        INTO max_statusentry_time
         FROM statusentry;
 
-        SELECT DATE(MAX(date))
-        INTO max_relay_uptime_date
+        SELECT MAX(date)
+        INTO max_relay_uptime_time
         FROM relay_uptime;
 
-        IF max_relay_uptime_date IS NULL THEN
-            max_relay_uptime_date := date '1970-01-01';
+        IF max_relay_uptime_time IS NULL THEN
+            max_relay_uptime_time := date '1970-01-01';
         END IF;
 
-        IF max_statusentry_date - max_relay_uptime_date > 0 THEN
+        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_uptime_time))/3600 > 0 THEN
             INSERT INTO relay_uptime
             (uptime, stddev, date)
             SELECT (AVG(uptime) / relay_statuses_per_day.count)::INT AS uptime,
@@ -416,7 +419,7 @@ CREATE OR REPLACE FUNCTION refresh_relay_uptime() RETURNS INTEGER AS $$
                 GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
             WHERE validafter IS NOT NULL
-                AND DATE(validafter) > max_relay_uptime_date
+                AND DATE(validafter) > max_relay_uptime_time
             GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
         RETURN 1;
@@ -425,23 +428,23 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() RETURNS INTEGER AS $$
     DECLARE
-        max_statusentry_date statusentry.validafter%TYPE;
-        max_relay_bandwidth_date relay_bandwidth.date%TYPE;
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_relay_bandwidth_time relay_bandwidth.date%TYPE;
     BEGIN
 
         SELECT DATE(MAX(validafter))
-        INTO max_statusentry_date
+        INTO max_statusentry_time
         FROM statusentry;
 
         SELECT DATE(MAX(date))
-        INTO max_relay_bandwidth_date
+        INTO max_relay_bandwidth_time
         FROM relay_bandwidth;
 
-        IF max_relay_bandwidth_date IS NULL THEN
-            max_relay_bandwidth_date := date '1970-01-01';
+        IF max_relay_bandwidth_time IS NULL THEN
+            max_relay_bandwidth_time := date '1970-01-01';
         END IF;
 
-        IF max_statusentry_date - max_relay_bandwidth_date > 0 THEN
+        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_bandwidth_time))/3600 > 0 THEN
             INSERT INTO relay_bandwidth
             (bwavg, bwburst, bwobserved, date)
             SELECT (AVG(bandwidthavg)
@@ -457,7 +460,7 @@ CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() RETURNS INTEGER AS $$
                         GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
             WHERE validafter IS NOT NULL
-                AND DATE(validafter) > max_relay_bandwidth_date
+                AND DATE(validafter) > max_relay_bandwidth_time
             GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
         RETURN 1;
@@ -466,23 +469,23 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     DECLARE
-        max_statusentry_date statusentry.validafter%TYPE;
-        max_total_bandwidth_date total_bandwidth.date%TYPE;
+        max_statusentry_time statusentry.validafter%TYPE;
+        max_total_bandwidth_time total_bandwidth.date%TYPE;
     BEGIN
 
         SELECT DATE(MAX(validafter))
-        INTO max_statusentry_date
+        INTO max_statusentry_time
         FROM statusentry;
 
         SELECT DATE(MAX(date))
-        INTO max_total_bandwidth_date
+        INTO max_total_bandwidth_time
         FROM total_bandwidth;
 
-        IF max_total_bandwidth_date IS NULL THEN
-            max_total_bandwidth_date := date '1970-01-01';
+        IF max_total_bandwidth_time IS NULL THEN
+            max_total_bandwidth_time := date '1970-01-01';
         END IF;
 
-        IF max_statusentry_date - max_total_bandwidth_date > 0 THEN
+        IF EXTRACT('epoch' from (max_statusentry_time - max_total_bandwidth_time))/3600 > 0 THEN
             INSERT INTO total_bandwidth
             (bwavg, bwburst, bwobserved, date)
             SELECT (SUM(bandwidthavg)
@@ -498,7 +501,7 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
                         GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
             WHERE validafter IS NOT NULL
-                AND DATE(validafter) > max_total_bandwidth_date
+                AND DATE(validafter) > max_total_bandwidth_time
             GROUP BY DATE(validafter), relay_statuses_per_day.count;
         END IF;
         RETURN 1;
