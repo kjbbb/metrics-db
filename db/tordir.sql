@@ -504,3 +504,10 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
         RETURN 1;
     END;
 $$ LANGUAGE plpgsql;
+
+GRANT INSERT, SELECT, UPDATE, DELETE
+ON descriptor, statusentry, descriptor_statusentry,
+    network_size, relay_platforms, relay_versions, relay_uptime,
+    relay_bandwidth, total_bandwidth, bridge_stats, gettor_stats,
+    torperf_stats
+TO ernie;
