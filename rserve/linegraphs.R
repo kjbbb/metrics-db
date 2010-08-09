@@ -39,7 +39,7 @@ plot_platforms_line <- function(start, end, path) {
   rs <- dbSendQuery(con, q)
   p <- fetch(rs,n=-1)
   p <- melt(p, id="date")
-  ggplot(p, aes(x=date, y=value, colour=variable)) +
+  ggplot(p, aes(x=as.Date(date, "%Y-%m-%d"), y=value, colour=variable)) +
     geom_line(size=1) +
     scale_x_date(name="") +
     scale_y_continuous(name="",
