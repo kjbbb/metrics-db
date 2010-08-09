@@ -86,7 +86,7 @@ plot_bridge_users_line <- function(start, end, path, country)  {
 }
 plot_torperf_line <- function (start, end, path, source, size) {
   drv <- dbDriver("PostgreSQL")
-  con <- dbConnect(drv, user=dbuser, password=dbpassword)
+  con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
 
   colors <- c("#0000EE", "#EE0000", "#00CD00")
   if (source=="moria") {
