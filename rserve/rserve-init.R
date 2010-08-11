@@ -12,3 +12,8 @@ library("digest")
 db = "tordir"
 dbuser = "ernie"
 dbpassword= ""
+
+source('boxplots.R')
+source('bargraphs.R')
+source('linegraphs.R')
+source('piecharts.R')
