@@ -87,9 +87,9 @@ public final class RelayDescriptorDatabaseImporter {
           + "isstable, isrunning, isunnamed, isvalid, isv2dir, isv3dir) "
           + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
       this.psD = conn.prepareStatement("INSERT INTO descriptor "
-          + "(descriptor, address, orport, dirport, bandwidthavg, "
-          + "bandwidthburst, bandwidthobserved, platform, published, "
-          + "uptime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+          + "(descriptor, fingerprint, address, orport, dirport, "
+          + "bandwidthavg, bandwidthburst, bandwidthobserved, platform, "
+          + "published, uptime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
     } catch (SQLException e) {
       this.logger.log(Level.WARNING, "Could not connect to database or "
@@ -148,10 +148,10 @@ public final class RelayDescriptorDatabaseImporter {
   /**
    * Insert server descriptor into database.
    */
-  public void addServerDescriptor(String descriptor, String address,
-      int orPort, int dirPort, long bandwidthAvg, long bandwidthBurst,
-      long bandwidthObserved, String platform, long published,
-      long uptime) {
+  public void addServerDescriptor(String descriptor, String fingerprint,
+      String address, int orPort, int dirPort, long bandwidthAvg,
+      long bandwidthBurst, long bandwidthObserved, String platform,
+      long published, long uptime) {
     if (this.psDs == null || this.psD == null) {
       return;
     }
@@ -165,15 +165,16 @@ public final class RelayDescriptorDatabaseImporter {
       }
       this.psD.clearParameters();
       this.psD.setString(1, descriptor);
-      this.psD.setString(2, address);
-      this.psD.setInt(3, orPort);
-      this.psD.setInt(4, dirPort);
-      this.psD.setLong(5, bandwidthAvg);
-      this.psD.setLong(6, bandwidthBurst);
-      this.psD.setLong(7, bandwidthObserved);
-      this.psD.setString(8, platform);
-      this.psD.setTimestamp(9, new Timestamp(published), cal);
-      this.psD.setLong(10, uptime);
+      this.psD.setString(2, fingerprint);
+      this.psD.setString(3, address);
+      this.psD.setInt(4, orPort);
+      this.psD.setInt(5, dirPort);
+      this.psD.setLong(6, bandwidthAvg);
+      this.psD.setLong(7, bandwidthBurst);
+      this.psD.setLong(8, bandwidthObserved);
+      this.psD.setString(9, platform);
+      this.psD.setTimestamp(10, new Timestamp(published), cal);
+      this.psD.setLong(11, uptime);
       this.psD.executeUpdate();
       rdsCount++;
       if (rdsCount % autoCommitCount == 0)  {
