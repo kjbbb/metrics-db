@@ -16,6 +16,7 @@ SET default_with_oids = false;
 -- src/org/torproject/ernie/db/RelayDescriptorDatabaseImporter.java).
 CREATE TABLE descriptor (
     descriptor character(40) NOT NULL,
+    fingerprint character(40),
     address character varying(15) NOT NULL,
     orport integer NOT NULL,
     dirport integer NOT NULL,
