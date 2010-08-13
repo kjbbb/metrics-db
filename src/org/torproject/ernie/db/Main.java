@@ -37,7 +37,8 @@ public class Main {
     RelayDescriptorDatabaseImporter rddi =
         config.getWriteRelayDescriptorDatabase() ?
         new RelayDescriptorDatabaseImporter(
-        config.getRelayDescriptorDatabaseJDBC()) : null;
+        config.getRelayDescriptorDatabaseJDBC(),
+        config.getAutoCommitCount()) : null;
 
     // Prepare writing bridge descriptors to database
     BridgeDescriptorDatabaseImporter bddi =

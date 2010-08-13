@@ -15,7 +15,7 @@ public final class RelayDescriptorDatabaseImporter {
   /**
    * How many records to commit with each database transaction.
    */
-  private final long autoCommitCount = 500;
+  private final int autoCommitCount;
 
   /**
    * Keep track of the number of records committed before each transaction
@@ -60,11 +60,14 @@ public final class RelayDescriptorDatabaseImporter {
    * Initialize database importer by connecting to the database and
    * preparing statements.
    */
-  public RelayDescriptorDatabaseImporter(String connectionURL) {
+  public RelayDescriptorDatabaseImporter(String connectionURL,
+      int autoCommitCount) {
 
     /* Initialize logger. */
     this.logger = Logger.getLogger(
         RelayDescriptorDatabaseImporter.class.getName());
+
+    this.autoCommitCount = autoCommitCount;
 
     try {
       /* Connect to database. */

@@ -86,6 +86,9 @@
 ## Write bridge user statistics to database for later evaluation.
 #WriteBridgeDescriptorDatabase 0
 #
+# How many records to commit to the database with each transaction
+#AutoCommitCount 500
+#
 ## Write torperf data to database
 #WriteTorperfDatabase 0
 #

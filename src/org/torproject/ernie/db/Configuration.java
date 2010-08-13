@@ -35,6 +35,7 @@ public class Configuration {
   private boolean importDirectoryArchives = false;
   private String directoryArchivesDirectory = "archives/";
   private boolean keepDirectoryArchiveImportHistory = false;
+  private int autoCommitCount = 500;
   private boolean writeRelayDescriptorDatabase = false;
   private boolean writeBridgeDescriptorDatabase = false;
   private String relayDescriptorDatabaseJdbc =
@@ -144,6 +145,8 @@ public class Configuration {
         } else if (line.startsWith("WriteBridgeDescriptorDatabase")) {
           this.writeBridgeDescriptorDatabase = Integer.parseInt(
               line.split(" ")[1]) != 0;
+        } else if (line.startsWith("AutoCommitCount")) {
+          this.autoCommitCount = Integer.parseInt(line.split(" ")[1]);
         } else if (line.startsWith("WriteTorperfDatabase")) {
           this.writeTorperfDatabase = Integer.parseInt(
               line.split(" ")[1]) != 0;
@@ -351,6 +354,9 @@ public class Configuration {
   }
   public boolean getWriteBridgeDescriptorDatabase() {
     return this.writeBridgeDescriptorDatabase;
+  }
+  public int getAutoCommitCount() {
+    return this.autoCommitCount;
   }
   public boolean getWriteTorperfDatabase() {
     return this.writeTorperfDatabase;
