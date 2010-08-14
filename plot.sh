@@ -1,3 +1,3 @@
 #!/bin/sh
-R --slave < R/graphs.R
+TZ=GMT R --slave < R/graphs.R
 
