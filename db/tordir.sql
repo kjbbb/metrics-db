@@ -72,6 +72,50 @@ CREATE TABLE descriptor_statusentry (
     isv3dir boolean DEFAULT false
 );
 
+CREATE TABLE network_size (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    avg_running INTEGER NOT NULL,
+    avg_exit INTEGER NOT NULL,
+    avg_guard INTEGER NOT NULL
+);
+
+CREATE TABLE relay_platforms (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    avg_linux INTEGER NOT NULL,
+    avg_darwin INTEGER NOT NULL,
+    avg_bsd INTEGER NOT NULL,
+    avg_windows INTEGER NOT NULL,
+    avg_other INTEGER NOT NULL
+);
+
+CREATE TABLE relay_versions (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    "0.1.2" INTEGER NOT NULL,
+    "0.2.0" INTEGER NOT NULL,
+    "0.2.1" INTEGER NOT NULL,
+    "0.2.2" INTEGER NOT NULL
+);
+
+CREATE TABLE relay_uptime (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    uptime INTEGER NOT NULL,
+    stddev INTEGER NOT NULL
+);
+
+CREATE TABLE relay_bandwidth (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    bwavg BIGINT NOT NULL,
+    bwburst BIGINT NOT NULL,
+    bwobserved BIGINT NOT NULL
+);
+
+CREATE TABLE total_bandwidth (
+    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    bwavg BIGINT NOT NULL,
+    bwburst BIGINT NOT NULL,
+    bwobserved BIGINT NOT NULL
+);
+
 ALTER TABLE ONLY descriptor
     ADD CONSTRAINT descriptor_pkey PRIMARY KEY (descriptor);
 
@@ -168,49 +212,6 @@ CREATE TRIGGER mirror_statusentry AFTER INSERT OR UPDATE OR DELETE ON statusentr
 CREATE TRIGGER mirror_descriptor AFTER INSERT OR UPDATE OR DELETE ON descriptor
     FOR EACH ROW EXECUTE PROCEDURE mirror_descriptor();
 
-CREATE TABLE network_size (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    avg_running INTEGER NOT NULL,
-    avg_exit INTEGER NOT NULL,
-    avg_guard INTEGER NOT NULL
-);
-
-CREATE TABLE relay_platforms (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    avg_linux INTEGER NOT NULL,
-    avg_darwin INTEGER NOT NULL,
-    avg_bsd INTEGER NOT NULL,
-    avg_windows INTEGER NOT NULL,
-    avg_other INTEGER NOT NULL
-);
-
-CREATE TABLE relay_versions (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    "0.1.2" INTEGER NOT NULL,
-    "0.2.0" INTEGER NOT NULL,
-    "0.2.1" INTEGER NOT NULL,
-    "0.2.2" INTEGER NOT NULL
-);
-
-CREATE TABLE relay_uptime (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    uptime INTEGER NOT NULL,
-    stddev INTEGER NOT NULL
-);
-
-CREATE TABLE relay_bandwidth (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    bwavg BIGINT NOT NULL,
-    bwburst BIGINT NOT NULL,
-    bwobserved BIGINT NOT NULL
-);
-
-CREATE TABLE total_bandwidth (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    bwavg BIGINT NOT NULL,
-    bwburst BIGINT NOT NULL,
-    bwobserved BIGINT NOT NULL
-);
 
 CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
     DECLARE
