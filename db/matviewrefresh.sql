@@ -8,3 +8,5 @@ SELECT * FROM refresh_relay_versions();
 SELECT * FROM refresh_relay_uptime();
 SELECT * FROM refresh_relay_bandwidth();
 SELECT * FROM refresh_total_bandwidth();
+
+DELETE FROM updates;

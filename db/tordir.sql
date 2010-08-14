@@ -111,6 +111,10 @@ CREATE TABLE network_size (
     avg_guard INTEGER NOT NULL
 );
 
+CREATE TABLE updates (
+    "date" date NOT NULL
+);
+
 CREATE TABLE relay_platforms (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     avg_linux INTEGER NOT NULL,
@@ -250,54 +254,68 @@ CREATE FUNCTION mirror_descriptor() RETURNS TRIGGER AS $mirror_descriptor$
 END;
 $mirror_descriptor$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION update_status() RETURNS TRIGGER AS $$
+    BEGIN
+        INSERT INTO updates
+        VALUES (DATE(NEW.validafter));
+    RETURN NEW
+    END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER mirror_statusentry AFTER INSERT OR UPDATE OR DELETE ON statusentry
     FOR EACH ROW EXECUTE PROCEDURE mirror_statusentry();
 
 CREATE TRIGGER mirror_descriptor AFTER INSERT OR UPDATE OR DELETE ON descriptor
     FOR EACH ROW EXECUTE PROCEDURE mirror_descriptor();
 
+CREATE TRIGGER update_status AFTER INSERT OR UPDATE ON statusentry
+    FOR EACH ROW EXECUTE PROCEDURE update_status();
 
 CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
-    DECLARE
-        max_statusentry_time statusentry.validafter%TYPE;
-        max_network_size_time network_size.date%TYPE;
     BEGIN
+        --Insert any new dates, or blank dates--
+        INSERT INTO network_size
+        (date, avg_running, avg_exit, avg_guard)
+        SELECT
+              DATE(validafter) as date,
+              COUNT(*) / relay_statuses_per_day.count AS avg_running,
+              SUM(CASE WHEN isexit IS TRUE THEN 1 ELSE 0 END)
+                  / relay_statuses_per_day.count AS avg_exit,
+              SUM(CASE WHEN isguard IS TRUE THEN 1 ELSE 0 END)
+                  / relay_statuses_per_day.count AS avg_guard
+          FROM statusentry
+          JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+              FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+              GROUP BY DATE(validafter)) relay_statuses_per_day
+          ON DATE(validafter) = relay_statuses_per_day.date
+          WHERE DATE(validafter) = relay_statuses_per_day.date
+              AND DATE(validafter) NOT IN
+                  (SELECT DATE(date) FROM network_size)
+          GROUP BY DATE(validafter), relay_statuses_per_day.count;
 
-        SELECT MAX(validafter)
-        INTO max_statusentry_time
-        FROM statusentry;
-
-        SELECT MAX(date)
-        INTO max_network_size_time
-        FROM network_size;
-
-        IF max_network_size_time IS NULL THEN
-            max_network_size_time := date '1970-01-01';
-        END IF;
-
-        --If the difference in time from the latest status entry and aggregated
-        --network size table is greater than an hour, then recreate data from
-        --that day, or create a new day.
-        IF EXTRACT('epoch' from (max_statusentry_time - max_network_size_time))/3600 > 0 THEN
-            INSERT INTO network_size
-            (date, avg_running, avg_exit, avg_guard)
-            SELECT
-                DATE(validafter) as date,
-                COUNT(*) / relay_statuses_per_day.count AS avg_running,
-                SUM(CASE WHEN isexit IS TRUE THEN 1 ELSE 0 END)
-                    / relay_statuses_per_day.count AS avg_exit,
-                SUM(CASE WHEN isguard IS TRUE THEN 1 ELSE 0 END)
-                    / relay_statuses_per_day.count AS avg_guard
+        --Update any new values that may have already
+        --been inserted, but aren't complete.  based on the 'updates' 
+        --table.
+        UPDATE network_size
+        SET avg_running=new_ns.avg_running,
+            avg_exit=new_ns.avg_exit,
+            avg_guard=new_ns.avg_guard
+        FROM (SELECT
+                 DATE(validafter) as date,
+                 COUNT(*) / relay_statuses_per_day.count AS avg_running,
+                  SUM(CASE WHEN isexit IS TRUE THEN 1 ELSE 0 END)
+                      / relay_statuses_per_day.count AS avg_exit,
+                  SUM(CASE WHEN isguard IS TRUE THEN 1 ELSE 0 END)
+                      / relay_statuses_per_day.count AS avg_guard
             FROM statusentry
             JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
                 FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
                 GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
-            WHERE DATE(validafter) = relay_statuses_per_day.date
-                AND DATE(validafter) > max_network_size_time
-            GROUP BY DATE(validafter), relay_statuses_per_day.count;
-        END IF;
-        RETURN 1;
+            WHERE DATE(validafter) IN (SELECT DISTINCT date FROM updates)
+            GROUP BY DATE(validafter), relay_statuses_per_day.count) as new_ns
+       WHERE new_ns.date=network_size.date;
+    RETURN 1;
     END;
 $$ LANGUAGE plpgsql;
 
