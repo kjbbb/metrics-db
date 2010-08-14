@@ -508,6 +508,46 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     END;
 $$ LANGUAGE plpgsql;
 
+CREATE VIEW platforms_uptime_month_v AS
+    SELECT avg_darwin.month, avg_darwin.avg::INTEGER AS avgdarwin,
+        avg_windows.avg::INTEGER AS avgwindows, avg_linux.avg::INTEGER AS avglinux,
+        avg_freebsd.avg::INTEGER AS avgfreebsd
+    FROM (SELECT AVG(uniq_uptimes.avg)/3600 AS AVG, DATE(uniq_uptimes.pub) AS MONTh
+      FROM (SELECT AVG((CASE WHEN d.uptime IS NULL THEN 0 ELSE d.uptime END)) AS avg,
+            fingerprint, MAX(DATE_TRUNC('month', DATE(d.published))) AS PUB
+        FROM descriptor d JOIN statusentry s
+        ON d.descriptor=s.descriptor
+        WHERE d.platform LIKE '%Windows%'
+        GROUP BY d.fingerprint) AS uniq_uptimes
+      GROUP BY DATE(uniq_uptimes.pub)) AS avg_windows
+    JOIN (SELECT AVG(uniq_uptimes.avg)/3600 AS avg, DATE(uniq_uptimes.pub) AS month
+      FROM (SELECT AVG((CASE WHEN d.uptime IS NULL THEN 0 ELSE d.uptime END)) AS avg,
+            fingerprint, MAX(DATE_TRUNC('month', DATE(d.published))) AS pub
+        FROM descriptor d JOIN statusentry s
+        ON d.descriptor=s.descriptor
+        WHERE d.platform LIKE '%Darwin%'
+        GROUP BY d.fingerprint) AS uniq_uptimes
+      GROUP BY DATE(uniq_uptimes.pub)) AS avg_darwin
+    ON avg_darwin.month=avg_windows.month
+    JOIN (SELECT AVG(uniq_uptimes.avg)/3600 AS avg, DATE(uniq_uptimes.pub) AS month
+      FROM (SELECT AVG((CASE WHEN d.uptime IS NULL THEN 0 ELSE d.uptime END)) AS avg,
+            fingerprint, MAX(DATE_TRUNC('month', DATE(d.published))) AS pub
+        FROM descriptor d JOIN statusentry s
+        ON d.descriptor=s.descriptor
+        WHERE d.platform LIKE '%Linux%'
+        GROUP BY d.fingerprint) AS uniq_uptimes
+      GROUP BY DATE(uniq_uptimes.pub)) AS avg_linux
+    ON avg_darwin.month=avg_linux.month
+    JOIN (SELECT AVG(uniq_uptimes.avg)/3600 AS avg, DATE(uniq_uptimes.pub) AS month
+      FROM (SELECT AVG((CASE WHEN d.uptime IS NULL THEN 0 ELSE d.uptime END)) AS avg,
+            fingerprint, MAX(DATE_TRUNC('month', DATE(d.published))) AS pub
+        FROM descriptor d JOIN statusentry s
+        ON d.descriptor=s.descriptor
+        WHERE d.platform LIKE '%Linux%'
+        GROUP BY d.fingerprint) AS uniq_uptimes
+      GROUP BY DATE(uniq_uptimes.pub)) AS avg_freebsd
+    ON avg_freebsd.month=avg_linux.month;
+
 GRANT INSERT, SELECT, UPDATE, DELETE
 ON descriptor, statusentry, descriptor_statusentry,
     network_size, relay_platforms, relay_versions, relay_uptime,
