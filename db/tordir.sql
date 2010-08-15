@@ -379,44 +379,51 @@ CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
-    DECLARE
-        max_statusentry_time statusentry.validafter%TYPE;
-        max_relay_versions_time relay_versions.date%TYPE;
-    BEGIN
+    INSERT INTO relay_versions
+    (date, "0.1.2", "0.2.0", "0.2.1", "0.2.2")
+    SELECT DATE(validafter),
+        SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.1.2' THEN 1 ELSE 0 END)
+            / relay_statuses_per_day.count AS "0.1.2",
+        SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.0' THEN 1 ELSE 0 END)
+            /relay_statuses_per_day.count AS "0.2.0",
+        SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.1' THEN 1 ELSE 0 END)
+            /relay_statuses_per_day.count AS "0.2.1",
+        SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.2' THEN 1 ELSE 0 END)
+            /relay_statuses_per_day.count AS "0.2.2"
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor = statusentry.descriptor
+    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+            FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+            GROUP BY DATE(validafter)) relay_statuses_per_day
+    ON DATE(validafter) = relay_statuses_per_day.date
+    WHERE DATE(validafter) NOT IN (SELECT DATE(date) FROM relay_versions)
+    GROUP BY DATE(validafter), relay_statuses_per_day.count;
 
-        SELECT MAX(validafter)
-        INTO max_statusentry_time
-        FROM statusentry;
+    UPDATE relay_versions
+    SET "0.1.2"=new_rv."0.1.2",
+        "0.2.0"=new_rv."0.2.0",
+        "0.2.1"=new_rv."0.2.1",
+        "0.2.2"=new_rv."0.2.2"
+    FROM (SELECT DATE(validafter),
+            SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.1.2' THEN 1 ELSE 0 END)
+                / relay_statuses_per_day.count AS "0.1.2",
+            SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.0' THEN 1 ELSE 0 END)
+                /relay_statuses_per_day.count AS "0.2.0",
+            SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.1' THEN 1 ELSE 0 END)
+                /relay_statuses_per_day.count AS "0.2.1",
+            SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.2' THEN 1 ELSE 0 END)
+                /relay_statuses_per_day.count AS "0.2.2"
+        FROM descriptor LEFT JOIN statusentry
+        ON descriptor.descriptor = statusentry.descriptor
+        JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                GROUP BY DATE(validafter)) relay_statuses_per_day
+        ON DATE(validafter) = relay_statuses_per_day.date
+        WHERE DATE(validafter) IN (SELECT DISTINCT date FROM updates)
+        GROUP BY DATE(validafter), relay_statuses_per_day.count) as new_rv
+    WHERE new_rv.date=relay_versions.date;
 
-        SELECT MAX(date)
-        INTO max_relay_versions_time
-        FROM relay_versions;
-
-        IF max_relay_versions_time IS NULL THEN
-            max_relay_versions_time := date '1970-01-01';
-        END IF;
-
-        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_versions_time))/3600 > 0 THEN
-            INSERT INTO relay_versions
-            (date, "0.1.2", "0.2.0", "0.2.1", "0.2.2")
-            SELECT DATE(validafter),
-                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.1.2' THEN 1 ELSE 0 END)
-                    / relay_statuses_per_day.count AS "0.1.2",
-                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.0' THEN 1 ELSE 0 END)
-                    /relay_statuses_per_day.count AS "0.2.0",
-                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.1' THEN 1 ELSE 0 END)
-                    /relay_statuses_per_day.count AS "0.2.1",
-                SUM(CASE WHEN substring(platform, 5, 5) LIKE '0.2.2' THEN 1 ELSE 0 END)
-                    /relay_statuses_per_day.count AS "0.2.2"
-            FROM descriptor_statusentry
-            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-                    FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
-                    GROUP BY DATE(validafter)) relay_statuses_per_day
-            ON DATE(validafter) = relay_statuses_per_day.date
-            WHERE DATE(validafter) > max_relay_versions_time
-            GROUP BY DATE(validafter), relay_statuses_per_day.count;
-        END IF;
-        RETURN 1;
+    RETURN 1;
     END;
 $$ LANGUAGE plpgsql;
 
