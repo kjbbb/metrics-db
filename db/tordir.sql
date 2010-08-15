@@ -427,47 +427,6 @@ CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
     END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() RETURNS INTEGER AS $$
-    DECLARE
-        max_statusentry_time statusentry.validafter%TYPE;
-        max_relay_bandwidth_time relay_bandwidth.date%TYPE;
-    BEGIN
-
-        SELECT DATE(MAX(validafter))
-        INTO max_statusentry_time
-        FROM statusentry;
-
-        SELECT DATE(MAX(date))
-        INTO max_relay_bandwidth_time
-        FROM relay_bandwidth;
-
-        IF max_relay_bandwidth_time IS NULL THEN
-            max_relay_bandwidth_time := date '1970-01-01';
-        END IF;
-
-        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_bandwidth_time))/3600 > 0 THEN
-            INSERT INTO relay_bandwidth
-            (bwavg, bwburst, bwobserved, date)
-            SELECT (AVG(bandwidthavg)
-                    / relay_statuses_per_day.count)::INT AS bwavg,
-                (AVG(bandwidthburst)
-                    / relay_statuses_per_day.count)::INT AS bwburst,
-                (AVG(bandwidthobserved)
-                    / relay_statuses_per_day.count)::INT AS bwobserved,
-                DATE(validafter)
-            FROM descriptor_statusentry
-            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-                        FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
-                        GROUP BY DATE(validafter)) relay_statuses_per_day
-            ON DATE(validafter) = relay_statuses_per_day.date
-            WHERE validafter IS NOT NULL
-                AND DATE(validafter) > max_relay_bandwidth_time
-            GROUP BY DATE(validafter), relay_statuses_per_day.count;
-        END IF;
-        RETURN 1;
-    END;
-$$ LANGUAGE plpgsql;
-
 CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     DECLARE
         max_statusentry_time statusentry.validafter%TYPE;
