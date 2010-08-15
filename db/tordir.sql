@@ -427,43 +427,6 @@ CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
     END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION refresh_relay_uptime() RETURNS INTEGER AS $$
-    DECLARE
-        max_statusentry_time statusentry.validafter%TYPE;
-        max_relay_uptime_time relay_uptime.date%TYPE;
-    BEGIN
-
-        SELECT MAX(validafter)
-        INTO max_statusentry_time
-        FROM statusentry;
-
-        SELECT MAX(date)
-        INTO max_relay_uptime_time
-        FROM relay_uptime;
-
-        IF max_relay_uptime_time IS NULL THEN
-            max_relay_uptime_time := date '1970-01-01';
-        END IF;
-
-        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_uptime_time))/3600 > 0 THEN
-            INSERT INTO relay_uptime
-            (uptime, stddev, date)
-            SELECT (AVG(uptime) / relay_statuses_per_day.count)::INT AS uptime,
-                (STDDEV(uptime) / relay_statuses_per_day.count)::INT AS stddev,
-                DATE(validafter)
-            FROM descriptor_statusentry
-            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
-                GROUP BY DATE(validafter)) relay_statuses_per_day
-            ON DATE(validafter) = relay_statuses_per_day.date
-            WHERE validafter IS NOT NULL
-                AND DATE(validafter) > max_relay_uptime_time
-            GROUP BY DATE(validafter), relay_statuses_per_day.count;
-        END IF;
-        RETURN 1;
-    END;
-$$ LANGUAGE plpgsql;
-
 CREATE OR REPLACE FUNCTION refresh_relay_bandwidth() RETURNS INTEGER AS $$
     DECLARE
         max_statusentry_time statusentry.validafter%TYPE;
