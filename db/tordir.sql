@@ -264,9 +264,13 @@ $mirror_descriptor$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION update_status() RETURNS TRIGGER AS $$
     BEGIN
-        INSERT INTO updates
-        VALUES (DATE(NEW.validafter));
-    RETURN NEW
+        IF (SELECT COUNT(*)
+            FROM updates
+            WHERE date = DATE(NEW.validafter) = 0) THEN
+            INSERT INTO updates
+            VALUES (DATE(NEW.validafter));
+        END IF;
+    RETURN NEW;
     END;
 $$ LANGUAGE plpgsql;
 
