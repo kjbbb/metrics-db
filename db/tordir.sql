@@ -132,12 +132,6 @@ CREATE TABLE relay_versions (
     "0.2.2" INTEGER NOT NULL
 );
 
-CREATE TABLE relay_uptime (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    uptime INTEGER NOT NULL,
-    stddev INTEGER NOT NULL
-);
-
 CREATE TABLE relay_bandwidth (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     bwavg BIGINT NOT NULL,
@@ -152,14 +146,19 @@ CREATE TABLE total_bandwidth (
     bwobserved BIGINT NOT NULL
 );
 
+CREATE TABLE platforms_uptime_month (
+    month date NOT NULL,
+    avg_windows INTEGER NOT NULL,
+    avg_darwin INTEGER NOT NULL,
+    avg_linux INTEGER NOT NULL,
+    avg_freebsd INTEGER NOT NULL
+);
+
 ALTER TABLE ONLY descriptor
     ADD CONSTRAINT descriptor_pkey PRIMARY KEY (descriptor);
 
 ALTER TABLE ONLY statusentry
     ADD CONSTRAINT statusentry_pkey PRIMARY KEY (validafter, descriptor);
-
---ALTER TABLE ONLY descriptor_statusentry
---    ADD CONSTRAINT descriptor_statusentry_pkey PRIMARY KEY (validafter, descriptor);
 
 ALTER TABLE ONLY bridge_stats
     ADD CONSTRAINT bridge_stats_pkey PRIMARY KEY (validafter);
@@ -170,12 +169,21 @@ ALTER TABLE ONLY torperf_stats
 ALTER TABLE gettor_stats
     ADD CONSTRAINT gettor_stats_pkey PRIMARY KEY(time, bundle);
 
+ALTER TABLE platforms_uptime_month
+    ADD CONSTRAINT platforms_uptime_month_pkey PRIMARY KEY(month);
+
+ALTER TABLE relay_platforms
+    ADD CONSTRAINT relay_platforms_pkey PRIMARY KEY(date);
+
+ALTER TABLE relay_versions
+    ADD CONSTRAINT relay_versions PRIMARY KEY(date);
+
+ALTER TABLE total_bandwidth
+    ADD CONSTRAINT total_bandwidth PRIMARY KEY(date);
+
 CREATE INDEX descriptorid ON descriptor USING btree (descriptor);
 CREATE INDEX statusentryid ON statusentry USING btree (descriptor, validafter);
 CREATE INDEX descriptorstatusid ON descriptor_statusentry USING btree (descriptor, validafter);
-CREATE INDEX bridgestatsid ON bridge_stats USING btree (validafter);
-CREATE INDEX torperfstatsid ON torperf_stats USING btree (time);
-CREATE INDEX gettorstatsid ON gettor_stats USING btree (time);
 
 CREATE LANGUAGE plpgsql;
 
@@ -474,11 +482,17 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     END;
 $$ LANGUAGE plpgsql;
 
-CREATE VIEW platforms_uptime_month_v AS
+CREATE OR REPLACE FUNCTION refresh_platforms_uptime_month() RETURNS INTEGER AS $$
+    BEGIN
+    INSERT INTO platforms_uptime_month (month,
+        avg_windows,
+        avg_darwin,
+        avg_linux,
+        avg_freebsd)
     SELECT avg_darwin.month, avg_darwin.avg::INTEGER AS avgdarwin,
         avg_windows.avg::INTEGER AS avgwindows, avg_linux.avg::INTEGER AS avglinux,
         avg_freebsd.avg::INTEGER AS avgfreebsd
-    FROM (SELECT AVG(uniq_uptimes.avg)/3600 AS AVG, DATE(uniq_uptimes.pub) AS MONTh
+    FROM (SELECT AVG(uniq_uptimes.avg)/3600 AS AVG, DATE(uniq_uptimes.pub) AS month
       FROM (SELECT AVG((CASE WHEN d.uptime IS NULL THEN 0 ELSE d.uptime END)) AS avg,
             fingerprint, MAX(DATE_TRUNC('month', DATE(d.published))) AS PUB
         FROM descriptor d JOIN statusentry s
@@ -509,14 +523,18 @@ CREATE VIEW platforms_uptime_month_v AS
             fingerprint, MAX(DATE_TRUNC('month', DATE(d.published))) AS pub
         FROM descriptor d JOIN statusentry s
         ON d.descriptor=s.descriptor
-        WHERE d.platform LIKE '%Linux%'
+        WHERE d.platform LIKE '%FreeBSD%'
         GROUP BY d.fingerprint) AS uniq_uptimes
       GROUP BY DATE(uniq_uptimes.pub)) AS avg_freebsd
-    ON avg_freebsd.month=avg_linux.month;
+    ON avg_freebsd.month=avg_linux.month and avg_darwin.month NOT IN
+        (SELECT month FROM platforms_uptime_month);
+    RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
 
 GRANT INSERT, SELECT, UPDATE, DELETE
 ON descriptor, statusentry, descriptor_statusentry,
     network_size, relay_platforms, relay_versions, relay_uptime,
     relay_bandwidth, total_bandwidth, bridge_stats, gettor_stats,
-    torperf_stats
+    torperf_stats, platforms_uptime_month
 TO ernie;
