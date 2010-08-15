@@ -42,8 +42,8 @@ CREATE TABLE statusentry (
     isv3dir boolean DEFAULT false NOT NULL
 );
 
---TABLE descriptor_statusentry: Unnormalized table containing both descriptors and
---status entries in one big table.
+--TABLE descriptor_statusentry: Unnormalized table containing both
+--descriptors and status entries in one big table.
 CREATE TABLE descriptor_statusentry (
     descriptor character(40) NOT NULL,
     address character varying(15),
@@ -115,11 +115,16 @@ CREATE TABLE total_bandwidth (
 );
 
 CREATE TABLE platforms_uptime_month (
-    month date NOT NULL,
+    month DATE NOT NULL,
     avg_windows INTEGER NOT NULL,
     avg_darwin INTEGER NOT NULL,
     avg_linux INTEGER NOT NULL,
     avg_freebsd INTEGER NOT NULL
+);
+
+CREATE TABLE relay_statuses_per_day (
+    date DATE NOT NULL,
+    count INTEGER NOT NULL
 );
 
 ALTER TABLE ONLY descriptor
@@ -149,106 +154,123 @@ ALTER TABLE relay_versions
 ALTER TABLE total_bandwidth
     ADD CONSTRAINT total_bandwidth PRIMARY KEY(date);
 
-CREATE INDEX descriptorid ON descriptor USING btree (descriptor);
-CREATE INDEX statusentryid ON statusentry USING btree (descriptor, validafter);
-CREATE INDEX descriptorstatusid ON descriptor_statusentry USING btree (descriptor, validafter);
+CREATE INDEX descriptorid ON descriptor
+    USING btree (descriptor);
+CREATE INDEX statusentryid ON statusentry
+    USING btree (descriptor, validafter);
+CREATE INDEX descriptorstatusid ON descriptor_statusentry 
+    USING btree (descriptor, validafter);
 
 CREATE LANGUAGE plpgsql;
 
 --TRIGGER mirror_statusentry()
 --Reflect any changes to statusentry in descriptor_statusentry
-CREATE FUNCTION mirror_statusentry() RETURNS TRIGGER AS $mirror_statusentry$
+CREATE FUNCTION mirror_statusentry() RETURNS TRIGGER
+AS $mirror_statusentry$
     DECLARE
         rd descriptor%ROWTYPE;
     BEGIN
-        IF (TG_OP = 'INSERT') THEN
-            SELECT * INTO rd FROM descriptor WHERE descriptor=NEW.descriptor;
-            INSERT INTO descriptor_statusentry
-            VALUES (new.descriptor, rd.address, rd.orport, rd.dirport,
-                    rd.bandwidthavg, rd.bandwidthburst, rd.bandwidthobserved,
-                    rd.platform, rd.published, rd.uptime, new.validafter,
-                    new.isauthority, new.isbadexit, new.isbaddirectory,
-                    new.isexit, new.isfast, new.isguard, new.ishsdir,
-                    new.isnamed, new.isstable, new.isrunning, new.isunnamed,
-                    new.isvalid, new.isv2dir, new.isv3dir);
+    IF (TG_OP = 'INSERT') THEN
+        SELECT * INTO rd FROM descriptor WHERE descriptor=NEW.descriptor;
+        INSERT INTO descriptor_statusentry
+        VALUES (new.descriptor, rd.address, rd.orport, rd.dirport,
+                rd.bandwidthavg, rd.bandwidthburst, rd.bandwidthobserved,
+                rd.platform, rd.published, rd.uptime, new.validafter,
+                new.isauthority, new.isbadexit, new.isbaddirectory,
+                new.isexit, new.isfast, new.isguard, new.ishsdir,
+                new.isnamed, new.isstable, new.isrunning, new.isunnamed,
+                new.isvalid, new.isv2dir, new.isv3dir);
 
-            DELETE FROM descriptor_statusentry
-            WHERE descriptor=NEW.descriptor AND validafter IS NULL;
+        DELETE FROM descriptor_statusentry
+        WHERE descriptor=NEW.descriptor AND validafter IS NULL;
 
-        ELSIF (TG_OP = 'UPDATE') THEN
-            UPDATE descriptor_statusentry
-            SET isauthority=NEW.isauthority,
-                isbadexit=NEW.isbadexit, isbaddirectory=NEW.isbaddirectory,
-                isexit=NEW.isexit, isfast=NEW.isfast, isguard=NEW.isguard,
-                ishsdir=NEW.ishsdir, isnamed=NEW.isnamed, isstable=NEW.isstable,
-                isrunning=NEW.isrunning, isunnamed=NEW.isunnamed,
-                isvalid=NEW.isvalid, isv2dir=NEW.isv2dir, isv3dir=NEW.isv3dir
-            WHERE descriptor=NEW.descriptor AND validafter=NEW.validafter;
-        ELSIF (TG_OP = 'DELETE') THEN
-            DELETE FROM descriptor_statusentry
-            WHERE validafter=OLD.validafter AND descriptor=OLD.descriptor;
-        END IF;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        UPDATE descriptor_statusentry
+        SET isauthority=NEW.isauthority,
+            isbadexit=NEW.isbadexit, isbaddirectory=NEW.isbaddirectory,
+            isexit=NEW.isexit, isfast=NEW.isfast, isguard=NEW.isguard,
+            ishsdir=NEW.ishsdir, isnamed=NEW.isnamed,
+            isstable=NEW.isstable,isrunning=NEW.isrunning,
+            isunnamed=NEW.isunnamed, isvalid=NEW.isvalid,
+            isv2dir=NEW.isv2dir, isv3dir=NEW.isv3dir
+        WHERE descriptor=NEW.descriptor AND validafter=NEW.validafter;
+    ELSIF (TG_OP = 'DELETE') THEN
+        DELETE FROM descriptor_statusentry
+        WHERE validafter=OLD.validafter AND descriptor=OLD.descriptor;
+    END IF;
     RETURN NEW;
 END;
 $mirror_statusentry$ LANGUAGE plpgsql;
 
 --FUNCTION mirror_descriptor
---Reflect changes in descriptor_statusentry when changes made to descriptor table
+--Reflect changes in descriptor_statusentry when changes are made to
+--the descriptor table
 CREATE FUNCTION mirror_descriptor() RETURNS TRIGGER AS $mirror_descriptor$
     DECLARE
         dcount INTEGER;
     BEGIN
-        IF (TG_OP = 'INSERT') THEN
-            SELECT COUNT(*) INTO dcount
-            FROM descriptor_statusentry
-            WHERE descriptor=NEW.descriptor AND validafter IS NOT NULL;
+    IF (TG_OP = 'INSERT') THEN
+        SELECT COUNT(*) INTO dcount
+        FROM descriptor_statusentry
+        WHERE descriptor=NEW.descriptor AND validafter IS NOT NULL;
 
-            IF (dcount = 0) THEN
-                INSERT INTO descriptor_statusentry VALUES (
-                    NEW.descriptor, NEW.address, NEW.orport, NEW.dirport, NEW.bandwidthavg,
-                    NEW.bandwidthburst, NEW.bandwidthobserved, NEW.platform, NEW.published,
-                    NEW.uptime, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null);
-            ELSE
-                UPDATE descriptor_statusentry
-                SET address=NEW.address, orport=NEW.orport, dirport=NEW.dirport,
-                    bandwidthavg=NEW.bandwidthavg, bandwidthburst=NEW.bandwidthburst,
-                    bandwidthobserved=NEW.bandwidthobserved, platform=NEW.platform,
-                    published=NEW.published, uptime=NEW.uptime
-                WHERE descriptor=NEW.descriptor;
-            END IF;
-        ELSIF (TG_OP = 'UPDATE') THEN
+        IF (dcount = 0) THEN
+            INSERT INTO descriptor_statusentry VALUES (
+                NEW.descriptor, NEW.address, NEW.orport, NEW.dirport,
+                NEW.bandwidthavg, NEW.bandwidthburst,
+                NEW.bandwidthobserved, NEW.platform, NEW.published,
+                NEW.uptime, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null);
+        ELSE
             UPDATE descriptor_statusentry
-            SET address=NEW.address, orport=NEW.orport, dirport=NEW.dirport,
-                bandwidthavg=NEW.bandwidthavg, bandwidthburst=NEW.bandwidthburst,
-                bandwidthobserved=NEW.bandwidthobserved, platform=NEW.platform,
-                published=NEW.published, uptime=NEW.uptime
+            SET address=NEW.address, orport=NEW.orport,
+                dirport=NEW.dirport, bandwidthavg=NEW.bandwidthavg,
+                bandwidthburst=NEW.bandwidthburst,
+                bandwidthobserved=NEW.bandwidthobserved,
+                platform=NEW.platform, published=NEW.published,
+                uptime=NEW.uptime
             WHERE descriptor=NEW.descriptor;
-        ELSIF (TG_OP = 'DELETE') THEN
         END IF;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        UPDATE descriptor_statusentry
+        SET address=NEW.address, orport=NEW.orport, dirport=NEW.dirport,
+            bandwidthavg=NEW.bandwidthavg,
+            bandwidthburst=NEW.bandwidthburst,
+            bandwidthobserved=NEW.bandwidthobserved,
+            platform=NEW.platform, published=NEW.published,
+            uptime=NEW.uptime
+        WHERE descriptor=NEW.descriptor;
+    ELSIF (TG_OP = 'DELETE') THEN
+    END IF;
     RETURN NEW;
 END;
 $mirror_descriptor$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION update_status() RETURNS TRIGGER AS $$
     BEGIN
-        IF (SELECT COUNT(*)
-            FROM updates
-            WHERE date = DATE(NEW.validafter) = 0) THEN
-            INSERT INTO updates
-            VALUES (DATE(NEW.validafter));
-        END IF;
+    IF (SELECT COUNT(*)
+        FROM updates
+        WHERE date = DATE(NEW.validafter) = 0) THEN
+        INSERT INTO updates
+        VALUES (DATE(NEW.validafter));
+    END IF;
     RETURN NEW;
-    END;
+END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER mirror_statusentry AFTER INSERT OR UPDATE OR DELETE ON statusentry
+CREATE TRIGGER mirror_statusentry
+AFTER INSERT OR UPDATE OR DELETE
+ON statusentry
     FOR EACH ROW EXECUTE PROCEDURE mirror_statusentry();
 
-CREATE TRIGGER mirror_descriptor AFTER INSERT OR UPDATE OR DELETE ON descriptor
+CREATE TRIGGER mirror_descriptor
+AFTER INSERT OR UPDATE OR DELETE
+ON descriptor
     FOR EACH ROW EXECUTE PROCEDURE mirror_descriptor();
 
-CREATE TRIGGER update_status AFTER INSERT OR UPDATE ON statusentry
+CREATE TRIGGER update_status
+AFTER INSERT OR UPDATE
+ON statusentry
     FOR EACH ROW EXECUTE PROCEDURE update_status();
 
 CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
