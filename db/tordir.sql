@@ -428,43 +428,46 @@ CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
-    DECLARE
-        max_statusentry_time statusentry.validafter%TYPE;
-        max_total_bandwidth_time total_bandwidth.date%TYPE;
-    BEGIN
+    INSERT INTO total_bandwidth
+    (bwavg, bwburst, bwobserved, date)
+    SELECT (SUM(bandwidthavg)
+            / relay_statuses_per_day.count)::BIGINT AS bwavg,
+        (SUM(bandwidthburst)
+            / relay_statuses_per_day.count)::BIGINT AS bwburst,
+        (SUM(bandwidthobserved)
+            / relay_statuses_per_day.count)::BIGINT AS bwobserved,
+        DATE(validafter)
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor = statusentry.descriptor
+    JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                GROUP BY DATE(validafter)) relay_statuses_per_day
+    ON DATE(validafter) = relay_statuses_per_day.date
+    WHERE DATE(validafter) NOT IN (SELECT date FROM total_bandwidth)
+    GROUP BY DATE(validafter), relay_statuses_per_day.count;
 
-        SELECT DATE(MAX(validafter))
-        INTO max_statusentry_time
-        FROM statusentry;
+    UPDATE total_bandwidth
+    SET bwavg=new_tb.bwavg,
+        bwburst=new_tb.bwburst,
+        bwobserved=new_tb.bwobserved
+    FROM (SELECT (SUM(bandwidthavg)
+                / relay_statuses_per_day.count)::BIGINT AS bwavg,
+            (SUM(bandwidthburst)
+                / relay_statuses_per_day.count)::BIGINT AS bwburst,
+            (SUM(bandwidthobserved)
+                / relay_statuses_per_day.count)::BIGINT AS bwobserved,
+            DATE(validafter)
+        FROM descriptor LEFT JOIN statusentry
+        ON descriptor.descriptor = statusentry.descriptor
+        JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                    FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
+                    GROUP BY DATE(validafter)) relay_statuses_per_day
+        ON DATE(validafter) = relay_statuses_per_day.date
+        WHERE DATE(validafter) IN (SELECT DISTINCT date FROM updates)
+        GROUP BY DATE(validafter), relay_statuses_per_day.count) as new_tb
+    WHERE new_db.date = total_bandwidth.date;
 
-        SELECT DATE(MAX(date))
-        INTO max_total_bandwidth_time
-        FROM total_bandwidth;
-
-        IF max_total_bandwidth_time IS NULL THEN
-            max_total_bandwidth_time := date '1970-01-01';
-        END IF;
-
-        IF EXTRACT('epoch' from (max_statusentry_time - max_total_bandwidth_time))/3600 > 0 THEN
-            INSERT INTO total_bandwidth
-            (bwavg, bwburst, bwobserved, date)
-            SELECT (SUM(bandwidthavg)
-                    / relay_statuses_per_day.count)::BIGINT AS bwavg,
-                (SUM(bandwidthburst)
-                    / relay_statuses_per_day.count)::BIGINT AS bwburst,
-                (SUM(bandwidthobserved)
-                    / relay_statuses_per_day.count)::BIGINT AS bwobserved,
-                DATE(validafter)
-            FROM descriptor_statusentry
-            JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
-                        FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuses
-                        GROUP BY DATE(validafter)) relay_statuses_per_day
-            ON DATE(validafter) = relay_statuses_per_day.date
-            WHERE validafter IS NOT NULL
-                AND DATE(validafter) > max_total_bandwidth_time
-            GROUP BY DATE(validafter), relay_statuses_per_day.count;
-        END IF;
-        RETURN 1;
+    RETURN 1;
     END;
 $$ LANGUAGE plpgsql;
 
