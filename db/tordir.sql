@@ -294,7 +294,7 @@ CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
           GROUP BY DATE(validafter), relay_statuses_per_day.count;
 
         --Update any new values that may have already
-        --been inserted, but aren't complete.  based on the 'updates' 
+        --been inserted, but aren't complete.  based on the 'updates'
         --table.
         UPDATE network_size
         SET avg_running=new_ns.avg_running,
@@ -320,27 +320,38 @@ CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
-    DECLARE
-        max_statusentry_time statusentry.validafter%TYPE;
-        max_relay_platforms_time relay_platforms.date%TYPE;
-    BEGIN
+        INSERT INTO relay_platforms
+        (date, avg_linux, avg_darwin, avg_bsd, avg_windows, avg_other)
+        SELECT DATE(validafter),
+            SUM(CASE WHEN platform LIKE '%Linux%' THEN 1 ELSE 0 END) /
+                relay_statuses_per_day.count AS avg_linux,
+            SUM(CASE WHEN platform LIKE '%Darwin%' THEN 1 ELSE 0 END) /
+                relay_statuses_per_day.count AS avg_darwin,
+            SUM(CASE WHEN platform LIKE '%BSD%' THEN 1 ELSE 0 END) /
+                relay_statuses_per_day.count AS avg_bsd,
+            SUM(CASE WHEN platform LIKE '%Windows%' THEN 1 ELSE 0 END) /
+                relay_statuses_per_day.count AS avg_windows,
+            SUM(CASE WHEN platform NOT LIKE '%Windows%'
+                AND platform NOT LIKE '%Darwin%'
+                AND platform NOT LIKE '%BSD%'
+                AND platform NOT LIKE '%Linux%' THEN 1 ELSE 0 END) /
+                relay_statuses_per_day.count AS avg_other
+        FROM descriptor LEFT JOIN statusentry
+        On statusentry.descriptor = descriptor.descriptor
+        JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
+                FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
+                GROUP BY DATE(validafter)) relay_statuses_per_day
+        ON DATE(validafter) = relay_statuses_per_day.date
+        WHERE DATE(validafter) NOT IN (SELECT DATE(date) FROM relay_platforms)
+        GROUP BY DATE(validafter), relay_statuses_per_day.count;
 
-        SELECT MAX(validafter)
-        INTO max_statusentry_time
-        FROM statusentry;
-
-        SELECT MAX(date)
-        INTO max_relay_platforms_time
-        FROM relay_platforms;
-
-        IF max_relay_platforms_time IS NULL THEN
-            max_relay_platforms_time := date '1970-01-01';
-        END IF;
-
-        IF EXTRACT('epoch' from (max_statusentry_time - max_relay_platforms_time))/3600 > 0 THEN
-            INSERT INTO relay_platforms
-            (date, avg_linux, avg_darwin, avg_bsd, avg_windows, avg_other)
-            SELECT DATE(validafter),
+       UPDATE relay_platforms
+       SET avg_linux=new_rp.avg_linux,
+           avg_darwin=new_rp.avg_darwin,
+           avg_windows=new_rp.avg_windows,
+           avg_bsd=new_rp.avg_bsd,
+           avg_other=new_rp.avg_other
+       FROM (SELECT DATE(validafter),
                 SUM(CASE WHEN platform LIKE '%Linux%' THEN 1 ELSE 0 END) /
                     relay_statuses_per_day.count AS avg_linux,
                 SUM(CASE WHEN platform LIKE '%Darwin%' THEN 1 ELSE 0 END) /
@@ -354,15 +365,16 @@ CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
                     AND platform NOT LIKE '%BSD%'
                     AND platform NOT LIKE '%Linux%' THEN 1 ELSE 0 END) /
                     relay_statuses_per_day.count AS avg_other
-            FROM descriptor_statusentry
+            FROM descriptor LEFT JOIN statusentry
+            ON statusentry.descriptor = descriptor.descriptor
             JOIN (SELECT COUNT(*) AS count, DATE(validafter) AS date
                     FROM (SELECT DISTINCT validafter FROM statusentry) distinct_consensuse
                     GROUP BY DATE(validafter)) relay_statuses_per_day
             ON DATE(validafter) = relay_statuses_per_day.date
-            WHERE DATE(validafter) > max_relay_platforms_time
-            GROUP BY DATE(validafter), relay_statuses_per_day.count;
-        END IF;
-        RETURN 1;
+            WHERE DATE(validafter) IN (SELECT DISTINCT date FROM updates)
+            GROUP BY DATE(validafter), relay_statuses_per_day.count) as new_rp
+        WHERE new_rp.date=relay_platforms.date;
+    RETURN 1;
     END;
 $$ LANGUAGE plpgsql;
 
