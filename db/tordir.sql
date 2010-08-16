@@ -11,7 +11,9 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 -- TABLE descriptor
--- Contains all of the descriptors published by routers.
+-- Contains all of the descriptors published by routers. This is updated
+-- and written to by the Java data processor. (See
+-- src/org/torproject/ernie/db/RelayDescriptorDatabaseImporter.java).
 CREATE TABLE descriptor (
     descriptor character(40) NOT NULL,
     address character varying(15) NOT NULL,
@@ -27,7 +29,9 @@ CREATE TABLE descriptor (
 
 -- TABLE statusentry
 -- Contains all of the consensuses published by the directories. Each
--- statusentry references a valid descriptor.
+-- statusentry references a valid descriptor. This is written to by the
+-- java data processor. (See
+-- src/org/torproject/ernie/db/RelayDescriptorDatabaseImporter.java)
 CREATE TABLE statusentry (
     validafter timestamp without time zone NOT NULL,
     descriptor character(40) NOT NULL,
@@ -47,8 +51,16 @@ CREATE TABLE statusentry (
     isv3dir boolean DEFAULT false NOT NULL
 );
 
+-- The tables bridge_stats, torperf_stats, gettor_stats, networksize,
+-- relay_platforms, relay_versions, platforms_uptime_month, and the
+-- relay_churn_* tables are all aggregate tables kept up-to-date for use
+-- in generating graphs, since keeping their statistics takes too long
+-- elsewhere. They are kept up-to-date by their respective refresh_*
+-- functions.
+
 -- TABLE bridge_status
 -- Contains the bridge statistics for the bridge users time graphs.
+-- See src/org/torproject/ernie/db/BridgeDescriptorDatabaseImporter.java
 -- TODO normalize this table by country.
 CREATE TABLE bridge_stats (
     date DATE NOT NULL,
@@ -68,6 +80,7 @@ CREATE TABLE bridge_stats (
 );
 
 -- TABLE torperf_stats
+-- See src/org/torproject/ernie/db/TorperfDatabaseImporter.java
 CREATE TABLE torperf_stats (
     source character varying(32) NOT NULL,
     time timestamp without time zone NOT NULL,
@@ -78,6 +91,7 @@ CREATE TABLE torperf_stats (
 );
 
 -- TABLE gettor_stats
+-- See src/org/torproject/ernie/db/GetTorDatabaseImporter.java
 CREATE TABLE gettor_stats (
     time timestamp without time zone NOT NULL,
     bundle character varying(32) NOT NULL,
@@ -85,6 +99,7 @@ CREATE TABLE gettor_stats (
 );
 
 -- TABLE network_size
+-- Aggregate table created from the descriptor/statusentry tables.
 CREATE TABLE network_size (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     avg_running INTEGER NOT NULL,
@@ -93,6 +108,7 @@ CREATE TABLE network_size (
 );
 
 -- TABLE relay_platforms
+-- Aggregate table created from the descriptor/statusentry tables.
 CREATE TABLE relay_platforms (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     avg_linux INTEGER NOT NULL,
@@ -103,6 +119,7 @@ CREATE TABLE relay_platforms (
 );
 
 -- TABLE relay_versions
+-- Aggregate table created from the descriptor/statusentry tables.
 CREATE TABLE relay_versions (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     "0.1.2" INTEGER NOT NULL,
@@ -111,9 +128,9 @@ CREATE TABLE relay_versions (
     "0.2.2" INTEGER NOT NULL
 );
 
--- TABLE total_bandwidth
--- Contains information for the whole network's total bandwidth which is used in
--- the bandwidth graphs.
+-- TABLE total_bandwidth Contains information for the whole network's total
+-- bandwidth which is used in the bandwidth graphs. Aggregate table created
+-- from the descriptor/statusentry tables.
 CREATE TABLE total_bandwidth (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     bwavg BIGINT NOT NULL,
@@ -121,11 +138,11 @@ CREATE TABLE total_bandwidth (
     bwobserved BIGINT NOT NULL
 );
 
--- TABLE platforms_uptime_month
--- Contains information regarding the average router uptime per month.  This
--- statistic is not perfect and requires the averages to be calculated from
--- sessions. See the function refresh_platforms_uptime_month() for more
--- information.
+-- TABLE platforms_uptime_month Contains information regarding the average
+-- router uptime per month.  This statistic is not perfect and requires the
+-- averages to be calculated from sessions. See the function
+-- refresh_platforms_uptime_month() for more information.  Aggregate table
+-- created from the descriptor/statusentry tables.
 CREATE TABLE platforms_uptime_month (
     month DATE NOT NULL,
     avg_windows INTEGER NOT NULL,
@@ -199,8 +216,8 @@ CREATE VIEW relay_statuses_per_day_v AS
     GROUP BY DATE(validafter);
 
 -- TABLE updates
--- A helper table which is used to keep track of what tables and where need to
--- be updated upon refreshes.
+-- A helper table which is used to keep track of what tables and where need
+-- to be updated upon refreshes.
 CREATE TABLE updates (
     "date" date NOT NULL
 );
@@ -292,10 +309,11 @@ ON statusentry
     FOR EACH ROW EXECUTE PROCEDURE update_status();
 
 -- refresh_* functions
--- The following functions keep their corresponding aggregate tables up-to-date.
--- They should be called every time ERNIE is run, or when new data is finished
--- being added to the descriptor or statusentry tables. They find what new data
--- has been entered or updated based on the updates table.
+-- The following functions keep their corresponding aggregate tables
+-- up-to-date.  They should be called every time ERNIE is run, or when new
+-- data is finished being added to the descriptor or statusentry tables.
+-- They find what new data has been entered or updated based on the updates
+-- table.
 
 -- FUNCTION refresh_network_size()
 CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
