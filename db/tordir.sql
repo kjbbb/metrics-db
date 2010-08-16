@@ -164,13 +164,15 @@ CREATE LANGUAGE plpgsql;
 -- This keeps the updates table up to date for the time graphs.
 CREATE OR REPLACE FUNCTION update_status() RETURNS TRIGGER AS $$
     BEGIN
-    IF (SELECT COUNT(*)
-        FROM updates
-        WHERE date = DATE(NEW.validafter) = 0) THEN
-        IF (TG_OP='INSERT') THEN
+    IF (TG_OP='INSERT') THEN
+        IF (SELECT COUNT(*) FROM updates
+            WHERE DATE=DATE(new.validafter)) = 0 THEN
             INSERT INTO updates
             VALUES (DATE(NEW.validafter));
-        ELSIF (TG_OP='DELETE') THEN
+        END IF;
+    ELSIF (TG_OP='DELETE') THEN
+        IF (SELECT COUNT(*) FROM updates
+            WHERE DATE=DATE(old.validafter)) = 0 THEN
             INSERT INTO updates
             VALUES (DATE(OLD.validafter));
         END IF;
