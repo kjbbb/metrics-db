@@ -229,7 +229,7 @@ ALTER TABLE ONLY statusentry
     ADD CONSTRAINT statusentry_pkey PRIMARY KEY (validafter, descriptor);
 
 ALTER TABLE ONLY bridge_stats
-    ADD CONSTRAINT bridge_stats_pkey PRIMARY KEY (validafter);
+    ADD CONSTRAINT bridge_stats_pkey PRIMARY KEY (date);
 
 ALTER TABLE ONLY torperf_stats
     ADD CONSTRAINT torperf_stats_pkey PRIMARY KEY (source, size, time);
@@ -244,10 +244,10 @@ ALTER TABLE relay_platforms
     ADD CONSTRAINT relay_platforms_pkey PRIMARY KEY(date);
 
 ALTER TABLE relay_versions
-    ADD CONSTRAINT relay_versions PRIMARY KEY(date);
+    ADD CONSTRAINT relay_versions_pkey PRIMARY KEY(date);
 
 ALTER TABLE total_bandwidth
-    ADD CONSTRAINT total_bandwidth PRIMARY KEY(date);
+    ADD CONSTRAINT total_bandwidth_pkey PRIMARY KEY(date);
 
 ALTER TABLE platforms_uptime_month
     ADD CONSTRAINT platforms_uptime_month_pkey PRIMARY KEY(month);
@@ -687,18 +687,17 @@ ON descriptor,
     network_size,
     relay_platforms,
     relay_versions,
-    relay_uptime,
     total_bandwidth,
     bridge_stats,
     gettor_stats,
     torperf_stats,
-    platforms_uptime_month
+    platforms_uptime_month,
     relays_seen_week,
     relays_seen_month,
     relays_seen_year,
     relay_churn_week,
     relay_churn_month,
-    relay_chrun_year,
+    relay_churn_year,
     updates,
     relay_statuses_per_day
 TO ernie;
