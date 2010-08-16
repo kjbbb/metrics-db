@@ -505,16 +505,22 @@ CREATE OR REPLACE FUNCTION refresh_churn()
 RETURNS INTEGER AS $$
     BEGIN
 
+    DELETE FROM relays_seen_week
+    WHERE DATE(week) IN (SELECT * FROM updates);
+
     INSERT INTO
     relays_seen_week (fingerprint, week)
     SELECT DISTINCT fingerprint,
         DATE_TRUNC('week', validafter) AS week
     FROM descriptor LEFT JOIN statusentry
     ON descriptor.descriptor=statusentry.descriptor
-    WHERE DATE_TRUNC('week', validafter) NOT IN
-        (SELECT week FROM relays_seen_week)
+    WHERE DATE_TRUNC('week', validafter) IN
+        (SELECT DATE_TRUNC('week') FROM updates)
         AND DATE_TRUNC('week', validafter) IS NOT NULL
     GROUP BY 1, 2;
+
+    DELETE FROM relays_seen_month
+    WHERE DATE(month) IN (SELECT * FROM updates);
 
     INSERT INTO
     relays_seen_month (fingerprint, month)
@@ -522,10 +528,13 @@ RETURNS INTEGER AS $$
         DATE_TRUNC('month', validafter) AS month
     FROM descriptor LEFT JOIN statusentry
     ON descriptor.descriptor=statusentry.descriptor
-    WHERE DATE_TRUNC('month', validafter) NOT IN
-        (SELECT month FROM relays_seen_month)
+    WHERE DATE_TRUNC('month', validafter) IN
+        (SELECT DATE_TRUNC('week') FROM updates)
         AND DATE_TRUNC('month', validafter) IS NOT NULL
     GROUP BY 1, 2;
+
+    DELETE FROM relays_seen_year
+    WHERE DATE(year) IN (SELECT * FROM updates);
 
     INSERT INTO
     relays_seen_year (year, fingerprint)
@@ -533,8 +542,8 @@ RETURNS INTEGER AS $$
         DISTINCT fingerprint
     FROM descriptor LEFT JOIN statusentry
     ON descriptor.descriptor=statusentry.descriptor
-    WHERE DATE_TRUNC('year', validafter) NOT IN
-        (SELECT year FROM relays_seen_year)
+    WHERE DATE_TRUNC('year', validafter) IN
+        (SELECT DATE_TRUNC('week') FROM updates)
         AND DATE_TRUNC('year', validafter) IS NOT NULL
     GROUP BY 1, 2;
 
