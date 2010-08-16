@@ -9,11 +9,12 @@ SELECT * FROM refresh_relay_uptime();
 SELECT * FROM refresh_relay_bandwidth();
 SELECT * FROM refresh_total_bandwidth();
 SELECT * FROM refresh_platforms_uptime_month();
-
--- Clear the updates table, since we have just updated everything.
-DELETE FROM updates;
+SELECT * FROM refresh_churn();
 
 -- Keep the relay_statuses_per_day helper materialized-view up-to-date.
 SELECT *
 INTO relay_statuses_per_day
 FROM relay_statuses_per_day_v;
+
+-- Clear the updates table, since we have just updated everything.
+DELETE FROM updates;

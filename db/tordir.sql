@@ -134,6 +134,54 @@ CREATE TABLE platforms_uptime_month (
     avg_freebsd INTEGER NOT NULL
 );
 
+-- TABLE relays_seen_week
+-- This table is materialized in refresh_churn(). It finds all of the
+-- routers appearing in each separate week.
+CREATE TABLE relays_seen_week (
+    week DATE NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL
+);
+
+-- TABLE relays_seen_month
+-- This table is materialized in refresh_churn(). It finds all of the
+-- routers appearing in each separate month.
+CREATE TABLE relays_seen_month (
+    month DATE NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL
+);
+
+-- TABLE relays_seen_year
+-- This table is materialized in refresh_churn(). It finds all of the
+-- routers appearing in each separate year.
+CREATE TABLE relays_seen_year (
+    year DATE NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL
+);
+
+-- TABLE relay_churn_week
+-- This statistic shows how many routers from one week are still running
+-- the next. The ratio is portrayed as a percent.
+CREATE TABLE relay_churn_week (
+    week DATE NOT NULL,
+    ratio FLOAT NOT NULL
+);
+
+-- TABLE relay_churn_month
+-- This statistic shows how many routers from one month are still running
+-- the next. The ratio is portrayed as a percent.
+CREATE TABLE relay_churn_month (
+    month DATE NOT NULL,
+    ratio FLOAT NOT NULL
+);
+
+-- TABLE relay_churn_year
+-- This statistic shows how many routers from one year are still running
+-- the next. The ratio is portrayed as a percent.
+CREATE TABLE relay_churn_year (
+    year DATE NOT NULL,
+    ratio FLOAT NOT NULL
+);
+
 -- TABLE relay_statuses_per_day
 -- A helper table which is commonly used to update the tables above in the
 -- refresh_* functions.
@@ -186,6 +234,24 @@ ALTER TABLE total_bandwidth
 
 ALTER TABLE platforms_uptime_month
     ADD CONSTRAINT platforms_uptime_month_pkey PRIMARY KEY(month);
+
+ALTER TABLE relays_seen_week
+    ADD CONSTRAINT relays_seen_week_pkey PRIMARY KEY(week, fingerprint);
+
+ALTER TABLE relays_seen_month
+    ADD CONSTRAINT relays_seen_month_pkey PRIMARY KEY(month, fingerprint);
+
+ALTER TABLE relays_seen_year
+    ADD CONSTRAINT relays_seen_year_pkey PRIMARY KEY(year, fingerprint);
+
+ALTER TABLE relay_churn_week
+    ADD CONSTRAINT relay_churn_week_pkey PRIMARY KEY(week);
+
+ALTER TABLE relay_churn_month
+    ADD CONSTRAINT relay_churn_month_pkey PRIMARY KEY(month);
+
+ALTER TABLE relay_churn_year
+    ADD CONSTRAINT relay_churn_year_pkey PRIMARY KEY(year);
 
 ALTER TABLE updates
     ADD CONSTRAINT updates_pkey PRIMARY KEY(date);
@@ -432,13 +498,99 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     END;
 $$ LANGUAGE plpgsql;
 
+-- FUNCTION refresh_churn
+-- The churn tables find the percentage of relays from each
+-- week/month/year that appear in the following week/month/year.
+CREATE OR REPLACE FUNCTION refresh_churn()
+RETURNS INTEGER AS $$
+    BEGIN
+
+    INSERT INTO
+    relays_seen_week (fingerprint, week)
+    SELECT DISTINCT fingerprint,
+        DATE_TRUNC('week', validafter) AS week
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor=statusentry.descriptor
+    WHERE DATE_TRUNC('week', validafter) NOT IN
+        (SELECT week FROM relays_seen_week)
+        AND DATE_TRUNC('week', validafter) IS NOT NULL
+    GROUP BY 1, 2;
+
+    INSERT INTO
+    relays_seen_month (fingerprint, month)
+    SELECT DISTINCT fingerprint,
+        DATE_TRUNC('month', validafter) AS month
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor=statusentry.descriptor
+    WHERE DATE_TRUNC('month', validafter) NOT IN
+        (SELECT month FROM relays_seen_month)
+        AND DATE_TRUNC('month', validafter) IS NOT NULL
+    GROUP BY 1, 2;
+
+    INSERT INTO
+    relays_seen_year (year, fingerprint)
+    SELECT DATE_TRUNC('year', validafter) AS year,
+        DISTINCT fingerprint
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor=statusentry.descriptor
+    WHERE DATE_TRUNC('year', validafter) NOT IN
+        (SELECT year FROM relays_seen_year)
+        AND DATE_TRUNC('year', validafter) IS NOT NULL
+    GROUP BY 1, 2;
+
+    DELETE FROM relay_churn_week;
+    INSERT INTO relay_churn_week
+    (week, ratio)
+    SELECT relays_seen_week.week AS week,
+        (churn.count::FLOAT/COUNT(DISTINCT fingerprint)::FLOAT) AS ratio
+    FROM relays_seen_week
+    JOIN ( SELECT COUNT(DISTINCT now.fingerprint) AS count, now.week
+        FROM relays_seen_week now
+        JOIN relays_seen_week future
+        ON DATE(now.week)=DATE(future.week + interval '1 week')
+        AND now.fingerprint=future.fingerprint
+        GROUP BY 2) AS churn
+    ON relays_seen_week.week=churn.week
+    GROUP BY 1, churn.count;
+
+    DELETE FROM relay_churn_month;
+    INSERT INTO relay_churn_month
+    (month, ratio)
+    SELECT relays_seen_month.month,
+        (churn.count::float/count(distinct fingerprint)::float) as ratio
+    FROM relays_seen_month
+    JOIN ( SELECT COUNT(DISTINCT now.fingerprint) AS count, now.month
+        FROM relays_seen_month now
+        JOIN relays_seen_month future
+        ON DATE(now.month)=DATE(future.month + interval '1 month')
+        AND now.fingerprint=future.fingerprint
+        GROUP BY 2) AS churn
+    ON relays_seen_month.month=churn.month
+    GROUP BY 1, churn.count;
+
+    DELETE FROM relay_churn_year;
+    SELECT relays_seen_year.year,
+        (churn.count::FLOAT/COUNT(DISTINCT fingerprint)::FLOAT) AS ratio
+    FROM relays_seen_year
+    JOIN ( SELECT COUNT(DISTINCT now.fingerprint) AS count, now.year
+        FROM relays_seen_year now
+        JOIN relays_seen_year future
+        ON DATE(now.year)=DATE(future.year + interval '1 year')
+        AND now.fingerprint=future.fingerprint
+        GROUP BY 2) AS churn
+    ON relays_seen_year.year=churn.year
+    GROUP BY 1, churn.count;
+
+    RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
 -- FUNCTION refresh_platforms_uptime_month()
 CREATE OR REPLACE FUNCTION refresh_platforms_uptime_month()
 RETURNS INTEGER AS $$
     BEGIN
 
     DELETE FROM platforms_uptime_month;
-
     INSERT INTO platforms_uptime_month (month,
         avg_windows,
         avg_darwin,
