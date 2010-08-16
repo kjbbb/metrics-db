@@ -676,4 +676,12 @@ ON descriptor,
     gettor_stats,
     torperf_stats,
     platforms_uptime_month
+    relays_seen_week,
+    relays_seen_month,
+    relays_seen_year,
+    relay_churn_week,
+    relay_churn_month,
+    relay_chrun_year,
+    updates,
+    relay_statuses_per_day
 TO ernie;
