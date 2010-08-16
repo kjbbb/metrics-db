@@ -16,5 +16,5 @@ if [ "$n" -eq 1]; then
     user=`echo $conn | awk -F"=" '{print $2}' | sed -e 's/\&.*//'`
     pswd=`echo $conn | awk -F"password=" '{print $2}'`
 
-    psql -d $db -h $host -A -t -q -U $user -f db/matviewrefresh.sql
+    psql -d $db -h $host -A -t -q -U $user -f db/refresh.sql
 fi
