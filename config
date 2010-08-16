@@ -105,7 +105,7 @@
 ## Comma-separated set of countries to be included in dirreq and bridge
 ## graphs; note that after adding new countries, an import of the relevant
 ## descriptor archives (relay and/or bridge) is necessary!
-#DirreqBridgeCountries bh,cn,cu,et,ir,mm,sa,sy,tn,tm,uz,vn,ye
+#DirreqBridgeCountries au,bh,br,ca,cn,cu,de,et,fr,gb,ir,it,jp,kr,mm,pl,ru,sa,se,sy,tn,tm,us,uz,vn,ye
 #
 ## Comma-separated set of fingerprints of directory mirrors to be included
 ## in dirreq and bridge graphs; note that after adding new directories, an

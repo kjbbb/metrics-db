@@ -16,7 +16,8 @@ public class Configuration {
   private boolean writeConsensusStats = false;
   private boolean writeDirreqStats = false;
   private SortedSet<String> dirreqBridgeCountries = new TreeSet<String>(
-      Arrays.asList("bh,cn,cu,et,ir,mm,sa,sy,tn,tm,uz,vn,ye".split(",")));
+      Arrays.asList(("au,bh,br,ca,cn,cu,de,et,fr,gb,ir,it,jp,kr,mm,pl,ru,"
+          + "sa,se,sy,tn,tm,us,uz,vn,ye").split(",")));
   private SortedSet<String> dirreqDirectories = new TreeSet<String>(
       Arrays.asList(("8522EB98C91496E80EC238E732594D1509158E77,"
       + "9695DFC35FFEB861329B9F1AB04C46397020CE31").split(",")));

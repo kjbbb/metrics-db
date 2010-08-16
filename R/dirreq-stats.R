@@ -137,13 +137,18 @@ plot_current <- function(directory, filenamePart, titlePart, data,
   }
 }
 
-countries <- data.frame(code = c("bh", "cn", "cu", "et", "ir", "mm", "sa",
-  "sy", "tn", "tm", "uz", "vn", "ye"), people = c("Bahraini", "Chinese",
-  "Cuban", "Ethiopian", "Iranian", "Burmese", "Saudi", "Syrian",
-  "Tunisian", "Turkmen", "Uzbek", "Vietnamese", "Yemeni"), filename =
-  c("bahrain", "china", "cuba", "ethiopia", "iran", "burma", "saudi",
-  "syria", "tunisia", "turkmenistan", "uzbekistan", "vietnam", "yemen"),
-  stringsAsFactors = FALSE)
+countries <- data.frame(code = c("au", "bh", "br", "ca", "cn", "cu", "de",
+  "et", "fr", "gb", "ir", "it", "jp", "kr", "mm", "pl", "ru", "sa", "se",
+  "sy", "tn", "tm", "us", "uz", "vn", "ye"), people = c("Australian",
+  "Bahraini", "Brazilian", "Canadian", "Chinese", "Cuban", "German",
+  "Ethiopian", "French", "U.K.", "Iranian", "Italian", "Japanese",
+  "South Korean", "Burmese", "Polish", "Russian", "Saudi", "Swedish",
+  "Syrian", "Tunisian", "Turkmen", "U.S.", "Uzbek", "Vietnamese",
+  "Yemeni"), filename = c("australia", "bahrain", "brazil", "canada",
+  "china", "cuba", "germany", "ethiopia", "france", "uk", "iran", "italy",
+  "japan", "southkorea", "burma", "poland", "russia", "saudi", "sweden",
+  "syria", "tunisia", "turkmenistan", "usa", "uzbekistan", "vietnam",
+  "yemen"), stringsAsFactors = FALSE)
 
 if (file.exists("stats/dirreq-stats")) {
   dirreq <- read.csv("stats/dirreq-stats", header = TRUE,
