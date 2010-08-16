@@ -143,7 +143,11 @@ public class BridgeStatsFileHandler {
               SortedMap<String, String> obs =
                   new TreeMap<String, String>();
               for (int i = 3; i < parts.length; i++) {
-                obs.put(headers[i], parts[i]);
+                if (headers[i].equals("all")) {
+                  obs.put("zy", parts[i]);
+                } else {
+                  obs.put(headers[i], parts[i]);
+                }
               }
               this.addObs(hashedBridgeIdentity, date, time, obs);
             }
