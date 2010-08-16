@@ -535,7 +535,7 @@ RETURNS INTEGER AS $$
     FROM descriptor LEFT JOIN statusentry
     ON descriptor.descriptor=statusentry.descriptor
     WHERE DATE_TRUNC('week', validafter) IN
-        (SELECT DATE_TRUNC('week') FROM updates)
+        (SELECT DATE_TRUNC('week', date) FROM updates)
         AND DATE_TRUNC('week', validafter) IS NOT NULL
     GROUP BY 1, 2;
 
@@ -549,7 +549,7 @@ RETURNS INTEGER AS $$
     FROM descriptor LEFT JOIN statusentry
     ON descriptor.descriptor=statusentry.descriptor
     WHERE DATE_TRUNC('month', validafter) IN
-        (SELECT DATE_TRUNC('week') FROM updates)
+        (SELECT DATE_TRUNC('week', date) FROM updates)
         AND DATE_TRUNC('month', validafter) IS NOT NULL
     GROUP BY 1, 2;
 
@@ -557,13 +557,13 @@ RETURNS INTEGER AS $$
     WHERE DATE(year) IN (SELECT * FROM updates);
 
     INSERT INTO
-    relays_seen_year (year, fingerprint)
-    SELECT DATE_TRUNC('year', validafter) AS year,
-        DISTINCT fingerprint
+    relays_seen_year (fingerprint, year)
+    SELECT DISTINCT fingerprint,
+        DATE_TRUNC('year', validafter) AS year
     FROM descriptor LEFT JOIN statusentry
     ON descriptor.descriptor=statusentry.descriptor
     WHERE DATE_TRUNC('year', validafter) IN
-        (SELECT DATE_TRUNC('week') FROM updates)
+        (SELECT DATE_TRUNC('year', date) FROM updates)
         AND DATE_TRUNC('year', validafter) IS NOT NULL
     GROUP BY 1, 2;
 
