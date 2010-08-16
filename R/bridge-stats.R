@@ -14,31 +14,37 @@ plot_bridges <- function(filename, title, limits, code) {
 }
 
 plot_alldata <- function(countries) {
+  end <- Sys.Date()
+  start <- as.Date(bridge$date[1])
   for (country in 1:length(countries$code)) {
     code <- countries[country, 1]
     people <- countries[country, 2]
     filename <- countries[country, 3]
-    end <- Sys.Date()
-    start <- as.Date(bridge$date[1])
     plot_bridges(paste(filename, "-bridges-all.png", sep = ""),
       paste(people, "Tor users via bridges (all data)\n"),
       c(start, end), code)
   }
+  plot_bridges(paste("total-bridges-all.png", sep = ""),
+    paste("Total Tor users via bridges (all data)\n"),
+    c(start, end), "all")
 }
 
 plot_pastdays <- function(days, countries) {
   for (day in days) {
+    end <- Sys.Date()
+    start <- seq(from = end, length = 2, by = paste("-", day, " days",
+      sep = ""))[2]
     for (country in 1:length(countries$code)) {
       code <- countries[country, 1]
       people <- countries[country, 2]
       filename <- countries[country, 3]
-      end <- Sys.Date()
-      start <- seq(from = end, length = 2, by = paste("-", day, " days",
-        sep = ""))[2]
       plot_bridges(paste(filename, "-bridges-", day, "d.png", sep = ""),
         paste(people, "Tor users via bridges (past", day, "days)\n"),
         c(start, end), code)
     }
+    plot_bridges(paste("total-bridges-", day, "d.png", sep = ""),
+      paste("Total Tor users via bridges (past", day, "days)\n"),
+      c(start, end), "all")
   }
 }
 
@@ -53,24 +59,31 @@ plot_years <- function(years, countries) {
         as.Date(c(paste(year, "-01-01", sep = ""), paste(year, "-12-31",
         sep = ""))), code)
     }
+    plot_bridges(paste("total-bridges-", year, ".png", sep = ""),
+      paste("Total Tor users via bridges (", year, ")\n", sep = ""),
+      as.Date(c(paste(year, "-01-01", sep = ""), paste(year, "-12-31",
+      sep = ""))), "all")
   }
 }
 
 plot_quarters <- function(years, quarters, countries) {
   for (year in years) {
     for (quarter in quarters) {
+      start <- as.Date(paste(year, "-", (quarter - 1) * 3 + 1, "-01",
+        sep = ""))
+      end <- seq(seq(start, length = 2, by = "3 months")[2], length = 2,
+        by = "-1 day")[2]
       for (country in 1:length(countries$code)) {
         code <- countries[country, 1]
         people <- countries[country, 2]
         filename <- countries[country, 3]
-        start <- as.Date(paste(year, "-", (quarter - 1) * 3 + 1, "-01",
-          sep = ""))
-        end <- seq(seq(start, length = 2, by = "3 months")[2], length = 2,
-          by = "-1 day")[2]
         plot_bridges(paste(filename, "-bridges-", year, "-q", quarter,
           ".png", sep = ""), paste(people, " Tor users via bridges (Q",
           quarter, " ", year, ")\n", sep = ""), c(start, end), code)
       }
+      plot_bridges(paste("total-bridges-", year, "-q", quarter, ".png",
+        sep = ""), paste("Total Tor users via bridges (Q", quarter, " ",
+        year, ")\n", sep = ""), c(start, end), "all")
     }
   }
 }
@@ -78,18 +91,22 @@ plot_quarters <- function(years, quarters, countries) {
 plot_months <- function(years, months, countries) {
   for (year in years) {
     for (month in months) {
+      start <- as.Date(paste(year, "-", month, "-01", sep = ""))
+      end <- seq(seq(start, length = 2, by = "1 month")[2], length = 2,
+        by = "-1 day")[2]
       for (country in 1:length(countries$code)) {
         code <- countries[country, 1]
         people <- countries[country, 2]
         filename <- countries[country, 3]
-        start <- as.Date(paste(year, "-", month, "-01", sep = ""))
-        end <- seq(seq(start, length = 2, by = "1 month")[2], length = 2,
-          by = "-1 day")[2]
         plot_bridges(paste(filename, "-bridges-", year, "-",
           format(start, "%m"), ".png", sep = ""), paste(people,
           " Tor users via bridges (", format(start, "%B"), " ", year,
           ")\n", sep = ""), c(start, end), code)
       }
+      plot_bridges(paste("total-bridges-", year, "-", format(start, "%m"),
+        ".png", sep = ""), paste("Total Tor users via bridges (",
+        format(start, "%B"), " ", year, ")\n", sep = ""), c(start, end),
+        "all")
     }
   }
 }

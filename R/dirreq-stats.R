@@ -1,13 +1,17 @@
 options(warn = -1)
 suppressPackageStartupMessages(library("ggplot2"))
 
+formatter <- function(x, ...) {
+  format(x, scientific = FALSE, ...)
+}
+
 plot_dirreq <- function(directory, filename, title, limits, data, code) {
   c <- data.frame(date = data$date, users = data[[code]])
   ggplot(c, aes(x = as.Date(date, "%Y-%m-%d"), y = users)) +
     geom_line() +
     scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/",
     limits = limits) +
-    scale_y_continuous(name = "",
+    scale_y_continuous(name = "", formatter = formatter,
     limits = c(0, max(c$users, na.rm = TRUE))) +
     opts(title = title)
   ggsave(filename = paste(directory, filename, sep = ""),
@@ -16,32 +20,38 @@ plot_dirreq <- function(directory, filename, title, limits, data, code) {
 
 plot_alldata <- function(directory, filenamePart, titlePart, data,
     countries) {
+  end <- Sys.Date()
+  start <- as.Date(data$date[1])
   for (country in 1:length(countries$code)) {
     code <- countries[country, 1]
     people <- countries[country, 2]
     filename <- countries[country, 3]
-    end <- Sys.Date()
-    start <- as.Date(data$date[1])
     plot_dirreq(directory, paste(filename, filenamePart, "-all.png",
       sep = ""), paste(titlePart, people, "Tor users (all data)\n"),
       c(start, end), data, code)
   }
+  plot_dirreq(directory, paste("total", filenamePart, "-all.png",
+      sep = ""), paste("Total", tolower(titlePart),
+      "Tor users (all data)\n"), c(start, end), data, "all")
 }
 
 plot_pastdays <- function(directory, filenamePart, titlePart, days, data,
     countries) {
   for (day in days) {
+    end <- Sys.Date()
+    start <- seq(from = end, length = 2, by = paste("-", day, " days",
+      sep = ""))[2]
     for (country in 1:length(countries$code)) {
       code <- countries[country, 1]
       people <- countries[country, 2]
       filename <- countries[country, 3]
-      end <- Sys.Date()
-      start <- seq(from = end, length = 2, by = paste("-", day, " days",
-        sep = ""))[2]
       plot_dirreq(directory, paste(filename, filenamePart, "-", day,
         "d.png", sep = ""), paste(titlePart, people, "Tor users (past",
         day, "days)\n"), c(start, end), data, code)
     }
+    plot_dirreq(directory, paste("total", filenamePart, "-", day,
+        "d.png", sep = ""), paste("Total", tolower(titlePart),
+        "Tor users (past", day, "days)\n"), c(start, end), data, "all")
   }
 }
 
@@ -57,6 +67,11 @@ plot_years <- function(directory, filenamePart, titlePart, years, data,
         year, ")\n", sep = ""), as.Date(c(paste(year, "-01-01", sep = ""),
         paste(year, "-12-31", sep = ""))), data, code)
     }
+    plot_dirreq(directory, paste("total", filenamePart, "-", year,
+      ".png", sep = ""), paste("Total ", tolower(titlePart),
+      " Tor users (", year, ")\n", sep = ""),
+      as.Date(c(paste(year, "-01-01", sep = ""),
+      paste(year, "-12-31", sep = ""))), data, "all")
   }
 }
 
@@ -64,19 +79,23 @@ plot_quarters <- function(directory, filenamePart, titlePart, years,
     quarters, data, countries) {
   for (year in years) {
     for (quarter in quarters) {
+      start <- as.Date(paste(year, "-", (quarter - 1) * 3 + 1, "-01",
+        sep = ""))
+      end <- seq(seq(start, length = 2, by = "3 months")[2], length = 2,
+        by = "-1 day")[2]
       for (country in 1:length(countries$code)) {
         code <- countries[country, 1]
         people <- countries[country, 2]
         filename <- countries[country, 3]
-        start <- as.Date(paste(year, "-", (quarter - 1) * 3 + 1, "-01",
-          sep = ""))
-        end <- seq(seq(start, length = 2, by = "3 months")[2], length = 2,
-          by = "-1 day")[2]
         plot_dirreq(directory, paste(filename, filenamePart, "-", year,
           "-q", quarter, ".png", sep = ""), paste(titlePart, " ", people,
           " Tor users (Q", quarter, " ", year, ")\n", sep = ""),
           c(start, end), data, code)
       }
+      plot_dirreq(directory, paste("total", filenamePart, "-", year,
+        "-q", quarter, ".png", sep = ""), paste("Total ",
+        tolower(titlePart), " Tor users (Q", quarter, " ", year, ")\n",
+        sep = ""), c(start, end), data, "all")
     }
   }
 }
@@ -85,18 +104,22 @@ plot_months <- function(directory, filenamePart, titlePart, years, months,
     data, countries) {
   for (year in years) {
     for (month in months) {
+      start <- as.Date(paste(year, "-", month, "-01", sep = ""))
+      end <- seq(seq(start, length = 2, by = "1 month")[2], length = 2,
+        by = "-1 day")[2]
       for (country in 1:length(countries$code)) {
         code <- countries[country, 1]
         people <- countries[country, 2]
         filename <- countries[country, 3]
-        start <- as.Date(paste(year, "-", month, "-01", sep = ""))
-        end <- seq(seq(start, length = 2, by = "1 month")[2], length = 2,
-          by = "-1 day")[2]
         plot_dirreq(directory, paste(filename, filenamePart, "-", year,
           "-", format(start, "%m"), ".png", sep = ""), paste(titlePart,
           " ", people, " Tor users (", format(start, "%B"), " ", year,
           ")\n", sep = ""), c(start, end), data, code)
       }
+      plot_dirreq(directory, paste("total", filenamePart, "-", year, "-",
+        format(start, "%m"), ".png", sep = ""), paste("Total ",
+        tolower(titlePart), " Tor users (", format(start, "%B"), " ",
+        year, ")\n", sep = ""), c(start, end), data, "all")
     }
   }
 }
