@@ -8,8 +8,7 @@ import java.util.logging.*;
 
 public class SanitizedBridgesReader {
   public SanitizedBridgesReader(BridgeDescriptorParser bdp,
-      String bridgesDir, SortedSet<String> countries,
-      boolean keepImportHistory) {
+      String bridgesDir, boolean keepImportHistory) {
     Logger logger =
         Logger.getLogger(SanitizedBridgesReader.class.getName());
     SortedSet<String> bridgesImportHistory = new TreeSet<String>();

@@ -13,7 +13,7 @@ import org.apache.commons.compress.archivers.tar.*;
  */
 public class BridgeSnapshotReader {
   public BridgeSnapshotReader(BridgeDescriptorParser bdp,
-      String bridgeDirectoriesDir, Set<String> countries) {
+      String bridgeDirectoriesDir) {
     Logger logger =
         Logger.getLogger(BridgeSnapshotReader.class.getName());
     SortedSet<String> parsed = new TreeSet<String>();
