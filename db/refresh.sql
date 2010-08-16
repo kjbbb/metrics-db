@@ -2,6 +2,9 @@
 -- This script should be run every time ernie is run to keep data sinks
 -- up to date by calling the refresh functions.
 
+-- Make this script a transaction, in case we need to roll-back changes.
+BEGIN;
+
 -- Keep the relay_statuses_per_day helper materialized-view up-to-date.
 SELECT *
 INTO relay_statuses_per_day
@@ -18,3 +21,6 @@ SELECT * FROM refresh_churn();
 
 -- Clear the updates table, since we have just updated everything.
 DELETE FROM updates;
+
+-- Commit the transaction.
+COMMIT;
