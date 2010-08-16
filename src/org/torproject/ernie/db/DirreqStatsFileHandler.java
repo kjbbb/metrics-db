@@ -86,7 +86,11 @@ public class DirreqStatsFileHandler {
           } else {
             String[] headers = line.split(",");
             for (int i = 2; i < headers.length - 1; i++) {
-              this.countries.add(headers[i]);
+              if (headers[i].equals("all")) {
+                this.countries.add("zy");
+              } else {
+                this.countries.add(headers[i]);
+              }
             }
             /* Read in the rest of the file. */
             while ((line = br.readLine()) != null) {
@@ -106,7 +110,11 @@ public class DirreqStatsFileHandler {
               if (!parts[parts.length - 1].equals("NA")) {
                 Map<String, String> obs = new HashMap<String, String>();
                 for (int i = 2; i < parts.length - 1; i++) {
-                  obs.put(headers[i], parts[i]);
+                  if (headers[i].equals("all")) {
+                    obs.put("zy", parts[i]);
+                  } else {
+                    obs.put(headers[i], parts[i]);
+                  }
                 }
                 String share = parts[parts.length - 1];
                 this.addObs(directory, date, obs, share);
@@ -153,7 +161,7 @@ public class DirreqStatsFileHandler {
           + "before (" + this.dirreqs.get(key) + "! Overwriting!");
       this.dirreqs.put(key, value);
       this.dirreqsModified = true;
-    }   
+    }
   }
 
   /**
@@ -173,7 +181,11 @@ public class DirreqStatsFileHandler {
         /* Write header. */
         bw.append("directory,date");
         for (String country : this.countries) {
-          bw.append("," + country);
+          if (country.equals("zy")) {
+            bw.append(",all");
+          } else {
+            bw.append("," + country);
+          }
         }
         bw.append(",share\n");
         /* Memorize last written date and directory to fill missing dates

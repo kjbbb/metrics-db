@@ -103,16 +103,20 @@ public class BridgeDescriptorParser {
           long started = timeFormat.parse(geoipStartTimeLine.
               substring("geoip-start-time ".length())).getTime();
           long seconds = (published - started) / 1000L;
+          double allUsers = 0.0D;
           Map<String, String> obs = new HashMap<String, String>();
           String[] parts = line.split(" ")[1].split(",");
           for (String p : parts) {
-            for (String c : countries) {
+            double users = ((double) Long.parseLong(p.substring(3)) - 4L)
+                    * 86400.0D / ((double) seconds);
+            allUsers += users;
+            for (String c : this.countries) {
               if (p.startsWith(c)) {
-                obs.put(c, String.format("%.2f",
-                    ((double) Long.parseLong(p.substring(3)) - 4L)
-                    * 86400.0D / ((double) seconds)));
+                obs.put(c, String.format("%.2f", users));
+                break;
               }
             }
+            obs.put("zy", String.format("%.2f", allUsers));
           }
           String date = publishedLine.split(" ")[1];
           String time = publishedLine.split(" ")[2];
@@ -130,13 +134,15 @@ public class BridgeDescriptorParser {
                 + " bridge descriptor.");
             break;
           }
+          double allUsers = 0.0D;
           Map<String, String> obs = new HashMap<String, String>();
           String[] parts = line.split(" ")[1].split(",");
           for (String p : parts) {
+            double users = (double) Long.parseLong(p.substring(3)) - 4L;
             for (String c : countries) {
               if (p.startsWith(c)) {
-                obs.put(c, String.format("%.2f",
-                    (double) Long.parseLong(p.substring(3)) - 4L));
+                obs.put(c, String.format("%.2f", users));
+                break;
               }
             }
           }

@@ -122,7 +122,11 @@ public class BridgeStatsFileHandler {
           } else {
             String[] headers = line.split(",");
             for (int i = 3; i < headers.length; i++) {
-              this.countries.add(headers[i]);
+              if (headers[i].equals("all")) {
+                this.countries.add("zy");
+              } else {
+                this.countries.add(headers[i]);
+              }
             }
             /* Read in the rest of the file. */
             while ((line = br.readLine()) != null) {
@@ -251,7 +255,7 @@ public class BridgeStatsFileHandler {
       Map<String, String> obs) {
     String key = hashedIdentity + "," + date;
     StringBuilder sb = new StringBuilder(key + "," + time);
-    for (String c : countries) {
+    for (String c : this.countries) {
       sb.append("," + (obs.containsKey(c) && !obs.get(c).startsWith("-")
           ? obs.get(c) : "0.0"));
     }
@@ -323,7 +327,11 @@ public class BridgeStatsFileHandler {
           this.bridgeStatsRawFile));
       bw.append("bridge,date,time");
       for (String c : this.countries) {
-        bw.append("," + c);
+        if (c.equals("zy")) {
+          bw.append(",all");
+        } else {
+          bw.append("," + c);
+        }
       }
       bw.append("\n");
       for (String line : this.bridgeUsersRaw.values()) {
@@ -358,7 +366,7 @@ public class BridgeStatsFileHandler {
           + date + "," + time)) {
         double[] users = bridgeUsersPerDay.get(date);
         if (users == null) {
-          users = new double[countries.size()];
+          users = new double[this.countries.size()];
           bridgeUsersPerDay.put(date, users);
         }
         for (int i = 3; i < parts.length; i++) {
@@ -377,7 +385,11 @@ public class BridgeStatsFileHandler {
           this.bridgeStatsFile));
       bw.append("date");
       for (String c : this.countries) {
-        bw.append("," + c);
+        if (c.equals("zy")) {
+          bw.append(",all");
+        } else {
+          bw.append("," + c);
+        }
       }
       bw.append("\n");
 

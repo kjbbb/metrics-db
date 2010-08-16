@@ -31,6 +31,7 @@ public class Main {
 
     // Define which stats we are interested in
     SortedSet<String> countries = config.getDirreqBridgeCountries();
+    countries.add("zy"); // Add country zy for 'all users'
     SortedSet<String> directories = config.getDirreqDirectories();
 
     // Prepare stats file handlers (only if we are writing stats)

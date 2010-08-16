@@ -316,15 +316,20 @@ public class RelayDescriptorParser {
             v3Reqs = line.split(" ")[1];
           } else if (line.startsWith("dirreq-v3-share ")
               && v3Reqs != null && !skip) {
+            int allUsers = 0;
             Map<String, String> obs = new HashMap<String, String>();
             String[] parts = v3Reqs.split(",");
             for (String p : parts) {
+              allUsers += Integer.parseInt(p.substring(3)) - 4;
               for (String c : this.countries) {
                 if (p.startsWith(c)) {
+                  // TODO in theory, we should substract 4 here, too
                   obs.put(c, p.substring(3));
+                  break;
                 }
               }
             }
+            obs.put("zy", "" + allUsers);
             String share = line.substring("dirreq-v3-share ".length(),
                 line.length() - 1);
             if (this.dsfh != null &&
