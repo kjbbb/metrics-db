@@ -363,6 +363,130 @@ can delete the lock file and start ERNIE again.
 If all goes well, you should now have the relay descriptors of 1 month in
 your database.
 
+\subsubsection{Import optimizations}
+If you are importing a very large amount of descriptors into the database at
+once, it is possible to speed up the loading process by the order of a magnitude
+or more. I would recommend following this section if you are importing a year or
+more of data, or if importing descriptors is causing unnecessarily high load on
+your machine. Certain sacrifices concerning integrity of data will have to be
+made, so be careful of this. Furthermore, the following steps should only be
+used if you are starting from scratch (unless you want a big mess to clean up!).
+\\
+
+Removing the indexes and primary key constraints and re-building them after
+can benefit performance.
+
+\begin{verbatim}
+ALTER TABLE descriptor
+DROP CONSTRAINT descriptor_pkey;
+
+ALTER TABLE descriptor
+DROP CONSTRAINT descriptor_pkey;
+
+DROP INDEX descriptorid;
+
+DROP INDEX statusentryid;
+\end{verbatim}
+
+Secondly, you may want to comment out a few lines in the source file
+\verb+src/org/torproject/metrics/db/RelayDescriptorDatabaseImporter.java+ since
+they involve integrity checking, and re-build it with ant when you are done
+(\verb+ant compile+). The following blocks in this file can be commented out
+with no effect (in the addDescriptor() and addStatusentry() methods).  TODO -
+make a config option for this.
+
+\begin{verbatim}
+      this.psDs.setString(1, descriptor);
+      ResultSet rs = psDs.executeQuery();
+      rs.next();
+      if (rs.getInt(1) > 0) {
+        return;
+      }
+
+\end{verbatim}
+\begin{verbatim}
+      this.psRs.setTimestamp(1, validAfterTimestamp, cal);
+      this.psRs.setString(2, descriptor);
+      ResultSet rs = psRs.executeQuery();
+      rs.next();
+      if (rs.getInt(1) > 0) {
+        return;
+      }
+\end{verbatim}
+
+Another way to speed up imports greatly is to turn off fsync. This, however,
+will require editing the Postgres config and restarting the server. Be careful
+with this option, because it is possible corrupt your data in case of a hard
+disk or power failure, so make sure you really trust your hardware! Otherwise,
+it is the best way to enhance performance. To turn fsync off, add the line
+\verb+fsync=off+ to \verb+Postgresql.conf+ (found in \verb+/etc+ or
+\verb+/usr/local/pgsql/data+) and restart the server. A similar, but safer way
+of achieving this effect can be done by increasing \verb+wal_buffers+. Other
+Postgres config options to improve performance are \verb+shared_buffers+,
+\verb+work_mem+, and \verb+archive_mode+. Please, read the Postgres docs for
+more information on these before changing anything.
+\\
+
+(\verb+http://www.postgresql.org/docs/8.4/static/runtime-config-resource.html+)
+\\
+
+Now, run ant (See section \verb+3.2.4+) as usual. After importing data (which
+still may take a few hours depending on your hardware and config), you will have
+to re-build the indexes and constraints.  This means that duplicate rows have to
+be deleted. Luckily, there shouldn't be too many duplicate rows to begin with,
+but it does happen. First, re-build the indexes:
+
+\begin{verbatim}
+CREATE INDEX descriptorid ON descriptor
+    USING btree (descriptor);
+
+CREATE INDEX statusentryid ON statusentry
+    USING btree (descriptor, validafter);
+\end{verbatim}
+
+Then, re-build the primary keys:
+\begin{verbatim}
+ALTER TABLE ONLY descriptor
+    ADD CONSTRAINT descriptor_pkey PRIMARY KEY (descriptor);
+
+ALTER TABLE ONLY statusentry
+    ADD CONSTRAINT statusentry_pkey
+        PRIMARY KEY (validafter, descriptor);
+\end{verbatim}
+
+Re-building the primary keys may fail if there are duplicates in the
+descriptor table. Here is an example of how to delete the duplicate rows in
+the descriptor table, using Postgres' built-in hidden ctid field. A similar
+methodology can be used for the statusentry table:
+
+\begin{verbatim}
+CREATE TABLE descriptor_dupes AS
+SELECT descriptor
+FROM descriptor
+GROUP BY descriptor
+HAVING COUNT(*) > 1;
+
+DELETE FROM descriptor WHERE ctid IN (
+    SELECT MAX(ctid) FROM descriptor
+    WHERE descriptor IN (SELECT descriptor FROM descriptor_dupes)
+    GROUP by descriptor)
+
+DROP TABLE descriptor_dupes;
+\end{verbatim}
+
+This will remove the first level of duplicates. There may be more, in which
+case the query can be run again until there are none left. Anyway, after
+deleting the duplicates, the primary keys can be re-built again.
+\\
+
+You can experiment with the config option AutoCommitCount, but you will see
+diminishing turns with values above 500. This tells Postgres how many INSERTS to
+do per transaction, since it will write to the disk only every 500 inserts.
+\\
+
+You are all set to go! Remember to reset the Postgres config options and turn
+fsync back on if you turned it back off. Wow, inserting data is so much faster!
+
 \subsubsection{Example queries}
 
 In this tutorial, we want to give you a few examples for using the
