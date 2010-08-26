@@ -630,8 +630,8 @@ public class ConsensusHealthChecker {
       for (Map.Entry<String, SortedSet<String>> e :
           votesAssignedFlags.entrySet()) {
         if (linesWritten++ % 10 == 0) {
-          bw.write("          <tr><td><b>Fingerprint</b></td>"
-              + "<td><b>Nickname</b></td>\n");
+          bw.write("          <tr><td><br/><b>Fingerprint</b></td>"
+              + "<td><br/><b>Nickname</b></td>\n");
           for (String dir : allKnownVotes) {
             String shortDirName = dir.length() > 6 ?
                 dir.substring(0, 5) + "." : dir;
