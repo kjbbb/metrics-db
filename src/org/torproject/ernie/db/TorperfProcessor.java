@@ -8,7 +8,8 @@ import java.util.*;
 import java.util.logging.*;
 
 public class TorperfProcessor {
-  public TorperfProcessor(String torperfDirectory) {
+  public TorperfProcessor(String torperfDirectory, 
+      TorperfDatabaseImporter tpdi) {
     Logger logger = Logger.getLogger(TorperfProcessor.class.getName());
     File rawFile = new File("stats/torperf-raw");
     File statsFile = new File("stats/torperf-stats");
@@ -154,12 +155,18 @@ public class TorperfProcessor {
       if (stats.size() > 0) {
         logger.fine("Writing file " + statsFile.getAbsolutePath()
             + "...");
+        if (tpdi != null) {
+          logger.fine("Writing Torperf statistics to database...");
+        }
         statsFile.getParentFile().mkdirs();
         BufferedWriter bw = new BufferedWriter(new FileWriter(statsFile));
         bw.append("source,date,q1,md,q3\n");
         // TODO should we handle missing days?
         for (String s : stats.values()) {
           bw.append(s + "\n");
+          if (tpdi != null) {
+            tpdi.addTorperfStats(s);
+          }
         }
         bw.close();
         logger.fine("Finished writing file " + statsFile.getAbsolutePath()

@@ -46,6 +46,12 @@ public class Main {
         new BridgeDescriptorDatabaseImporter(
         config.getRelayDescriptorDatabaseJDBC()) : null;
 
+    // Prepare writing torperf statistics to database
+    TorperfDatabaseImporter tpdi =
+        config.getWriteTorperfDatabase() ?
+        new TorperfDatabaseImporter(
+        config.getRelayDescriptorDatabaseJDBC()) : null;
+
     // Prepare stats file handlers (only if we are writing stats)
     ConsensusStatsFileHandler csfh = config.getWriteConsensusStats() ?
         new ConsensusStatsFileHandler() : null;
@@ -190,7 +196,7 @@ public class Main {
 
     // Import and process torperf stats
     if (config.getImportWriteTorperfStats()) {
-      new TorperfProcessor(config.getTorperfDirectory());
+      new TorperfProcessor(config.getTorperfDirectory(), tpdi);
     }
 
     // Download and process GetTor stats

@@ -113,6 +113,16 @@ CREATE TABLE bridge_stats (
     CONSTRAINT bridge_stats_pkey PRIMARY KEY(validafter)
 );
 
+-- TABLE torperf_status
+CREATE TABLE torperf_stats (
+    "date" DATE NOT NULL,
+    source CHARACTER VARYING(32) NOT NULL,
+    q1 INTEGER NOT NULL,
+    md INTEGER NOT NULL,
+    q3 INTEGER NOT NULL,
+    CONSTRAINT torperf_stats_pkey PRIMARY KEY(source, time)
+);
+
 -- TABLE relay_statuses_per_day
 -- A helper table which is commonly used to update the tables above in the
 -- refresh_* functions.
