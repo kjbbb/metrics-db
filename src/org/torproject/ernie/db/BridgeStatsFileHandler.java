@@ -23,6 +23,11 @@ public class BridgeStatsFileHandler {
   private SortedSet<String> countries;
 
   /**
+   * Load bridge data into the database.
+   */
+  private BridgeDescriptorDatabaseImporter bddi;
+
+  /**
    * Intermediate results file containing bridge user numbers by country
    * as seen by single bridges, normalized to 24-hour periods.
    */
@@ -79,10 +84,14 @@ public class BridgeStatsFileHandler {
    * files <code>stats/bridge-stats-raw</code> and
    * <code>stats/hashed-relay-identities</code>.
    */
-  public BridgeStatsFileHandler(SortedSet<String> countries) {
+  public BridgeStatsFileHandler(SortedSet<String> countries,
+      BridgeDescriptorDatabaseImporter bddi) {
 
     /* Memorize the set of countries we care about. */
     this.countries = countries;
+
+    /* Get the bridge descriptor database importer handler*/
+    this.bddi = bddi;
 
     /* Initialize local data structures to hold results. */
     this.bridgeUsersRaw = new TreeMap<String, String>();
@@ -397,6 +406,12 @@ public class BridgeStatsFileHandler {
       }
       bw.append("\n");
 
+      /* Write bridge users to database. */
+      if (bddi != null) {
+        for (Map.Entry<String, double[]> e: bridgeUsersPerDay.entrySet()) {
+          bddi.addBridgeData(e.getKey(), e.getValue());
+        }
+      }
       /* Memorize last written date fill missing dates with NA's. */
       long lastDateMillis = 0L;
       SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -425,6 +440,7 @@ public class BridgeStatsFileHandler {
           bw.append("," + String.format("%.2f", users[i]));
         }
         bw.append("\n");
+
       }
       bw.close();
       this.logger.fine("Finished writing file "

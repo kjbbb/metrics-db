@@ -92,6 +92,27 @@ CREATE TABLE total_bandwidth (
     CONSTRAINT total_bandwidth_pkey PRIMARY KEY(date)
 );
 
+-- TABLE bridge_status
+-- Contains the bridge users country information.
+-- TODO Normalize this relation
+CREATE TABLE bridge_stats (
+    "date" DATE NOT NULL,
+    bh FLOAT,
+    cn FLOAT,
+    cu FLOAT,
+    et FLOAT,
+    ir FLOAT,
+    mm FLOAT,
+    sa FLOAT,
+    sy FLOAT,
+    tm FLOAT,
+    tn FLOAT,
+    uz FLOAT,
+    vn FLOAT,
+    ye FLOAT,
+    CONSTRAINT bridge_stats_pkey PRIMARY KEY(validafter)
+);
+
 -- TABLE relay_statuses_per_day
 -- A helper table which is commonly used to update the tables above in the
 -- refresh_* functions.

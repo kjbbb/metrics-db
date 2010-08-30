@@ -83,6 +83,9 @@
 ## Write relay descriptors to a database for later evaluation
 #WriteRelayDescriptorDatabase 0
 #
+## Write bridge user statistics to database for later evaluation.
+#WriteBridgeDescriptorDatabase 0
+#
 ## JDBC string for relay descriptor database
 #RelayDescriptorDatabaseJDBC jdbc:postgresql://localhost/tordir?user=ernie&password=password
 #
