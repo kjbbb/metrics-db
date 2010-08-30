@@ -123,6 +123,14 @@ CREATE TABLE torperf_stats (
     CONSTRAINT torperf_stats_pkey PRIMARY KEY(source, time)
 );
 
+-- TABLE gettor_stats
+REATE TABLE gettor_stats (
+    "date" DATE NOT NULL,
+    bundle CHARACTER VARYING(32) NOT NULL,
+    count INTEGER NOT NULL,
+    CONSTRAINT gettor_stats_pkey PRIMARY KEY(time, bundle)
+);
+
 -- TABLE relay_statuses_per_day
 -- A helper table which is commonly used to update the tables above in the
 -- refresh_* functions.

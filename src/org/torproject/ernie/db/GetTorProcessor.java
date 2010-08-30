@@ -8,7 +8,8 @@ import java.util.*;
 import java.util.logging.*;
 
 public class GetTorProcessor {
-  public GetTorProcessor(String gettorStatsUrl) {
+  public GetTorProcessor(String gettorStatsUrl,
+      GetTorDatabaseImporter gtdi) {
     Logger logger = Logger.getLogger(TorperfProcessor.class.getName());
     String unparsed = null;
     try {
@@ -86,6 +87,12 @@ public class GetTorProcessor {
     } catch (IOException e) {
       logger.log(Level.WARNING, "Failed writing "
           + statsFile.getAbsolutePath() + "!", e);
+    }
+
+    /* Write GetTor statistics to database if we need to. */
+    if (gtdi != null) {
+      logger.fine("Writing GetTor statistics to database. ");
+      gtdi.addGetTorStats(columns, data);
     }
 
     logger.info("Finished downloading and processing statistics on Tor "
