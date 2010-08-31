@@ -643,9 +643,15 @@ public class ConsensusHealthChecker {
         SortedSet<String> votes = e.getValue();
         String fingerprint = relayKey.split(" ")[0].substring(0, 8);
         String nickname = relayKey.split(" ")[1];
-        bw.write("          <tr>\n"
-            + "            <td>" + fingerprint + "</td>\n"
-            + "            <td>" + nickname + "</td>\n");
+        bw.write("          <tr>\n");
+        if (consensusAssignedFlags.containsKey(relayKey) &&
+            consensusAssignedFlags.get(relayKey).contains(" Named")) {
+          bw.write("            <td id=\"" + nickname + "\">"
+              + fingerprint + "</td>\n");
+        } else {
+          bw.write("            <td>" + fingerprint + "</td>\n");
+        }
+        bw.write("            <td>" + nickname + "</td>\n");
         SortedSet<String> relevantFlags = new TreeSet<String>();
         for (String vote : votes) {
           String[] parts = vote.split(" ");
