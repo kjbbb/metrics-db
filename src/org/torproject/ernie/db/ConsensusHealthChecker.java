@@ -341,6 +341,22 @@ public class ConsensusHealthChecker {
       }
     }
 
+    /* Check if we're missing a vote. TODO make this configurable */
+    SortedSet<String> knownAuthorities = new TreeSet<String>(
+        Arrays.asList(("dannenberg,dizum,gabelmoo,ides,maatuska,moria1,"
+        + "tor26,urras").split(",")));
+    for (String dir : allKnownVotes) {
+      knownAuthorities.remove(dir);
+    }
+    if (!knownAuthorities.isEmpty()) {
+      StringBuilder sb = new StringBuilder();
+      for (String dir : knownAuthorities) {
+        sb.append(", " + dir);
+      }
+      this.logger.warning("We're missing votes from the following "
+          + "directory authorities: " + sb.toString().substring(2));
+    }
+
     try {
 
       /* Keep the past two consensus health statuses. */
