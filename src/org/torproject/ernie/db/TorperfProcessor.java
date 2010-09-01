@@ -67,6 +67,15 @@ public class TorperfProcessor {
           } else {
             String source = pop.getName().substring(0,
                 pop.getName().indexOf("."));
+            String size = pop.getName().split("-")[1];
+            long receivedBytes = 1L;
+            if (pop.getName().endsWith("kb.data")) {
+              receivedBytes *= 1024L;
+            } else if (pop.getName().endsWith("mb.data")) {
+              receivedBytes *= 1024L * 1024L;
+            }
+            receivedBytes *= Long.parseLong(size.substring(0,
+                size.length() - "xb.data".length()));
             BufferedReader br = new BufferedReader(new FileReader(pop));
             String line = null;
             SimpleDateFormat formatter =
@@ -75,9 +84,10 @@ public class TorperfProcessor {
             while ((line = br.readLine()) != null) {
               String[] parts = line.split(" ");
               // remove defective lines as they occurred on gabelmoo as well
-              // as and incomplete downloads 
+              // as incomplete downloads
               if (parts.length == 20 && parts[0].length() == 10
-                  && !parts[16].equals("0")) {
+                  && !parts[16].equals("0")
+                  && Long.parseLong(parts[19]) > receivedBytes) {
                 long startSec = Long.parseLong(parts[0]);
                 String dateTime = formatter.format(
                     new Date(startSec * 1000L));
