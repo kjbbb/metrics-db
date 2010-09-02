@@ -1,3 +1,6 @@
+/* Copyright 2010 The Tor Project
+ * See LICENSE for licensing information */
+
 -- Denormalization is a data warehousing technique to speed
 -- up queries on very large data sets to avoid joins. This script will
 -- keep a denormalized table through row-level triggers. Keep in mind

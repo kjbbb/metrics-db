@@ -1,3 +1,6 @@
+/* Copyright 2010 The Tor Project
+ * See LICENSE for licensing information */
+
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = off;
 SET check_function_bodies = false;
