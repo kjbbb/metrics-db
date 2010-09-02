@@ -1,3 +1,6 @@
+# Copyright 2010 The Tor Project
+# See LICENSE for licensing information
+
 plot_bandwidth_versions_boxplot <- function(start, end, path, limit=0) {
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)

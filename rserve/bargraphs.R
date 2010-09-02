@@ -1,3 +1,6 @@
+# Copyright 2010 The Tor Project
+# See LICENSE for licensing information
+
 plot_bandwidth_versions_bargraph <- function(start, end, path) {
 
   drv <- dbDriver("PostgreSQL")

@@ -1,3 +1,6 @@
+# Copyright 2010 The Tor Project
+# See LICENSE for licensing information
+
 plot_networksize_line <- function(start, end, path) {
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, user=dbuser, password=dbpassword, dbname=db)
