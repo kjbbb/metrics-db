@@ -246,14 +246,14 @@ PostgreSQL 8.3 on Debian GNU/Linux 5.0.
 Note that in theory, any other relational database that has a working JDBC
 4 driver should work, too, possibly with minor modifications to ERNIE.
 
-Import the database schema from file \verb+tordir.sql+ containing two
+Import the database schema from file \verb+db/tordir.sql+ containing two
 tables that we need for importing relay descriptors plus two indexes to
 accelerate queries. Check that tables have been created using \verb+\dt+.
 You should see a list containing the two tables \verb+descriptor+ and
 \verb+statusentry+.
 
 \begin{verbatim}
-$ psql -h localhost -U ernie -f tordir.sql tordir
+$ psql -h localhost -U ernie -f db/tordir.sql tordir
 $ psql -h localhost -U ernie tordir
 tordir=> \dt
 tordir=> \q
