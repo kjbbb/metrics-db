@@ -1,5 +1,5 @@
-/* Copyright 2010 The Tor Project
- * See LICENSE for licensing information */
+-- Copyright 2010 The Tor Project
+-- See LICENSE for licensing information
 
 -- NOTE THAT WE ARE CURRENTLY NOT USING DENORMALIZED TABLES! THIS FILE IS
 -- ONLY HERE FOR REFERENCE AND IN CASE WE'LL WANT TO USE DENORMALIZED

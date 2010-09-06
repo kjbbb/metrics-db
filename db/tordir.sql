@@ -1,5 +1,5 @@
-/* Copyright 2010 The Tor Project
- * See LICENSE for licensing information */
+-- Copyright 2010 The Tor Project
+-- See LICENSE for licensing information
 
 -- TABLE descriptor
 -- Contains all of the descriptors published by routers.
@@ -108,6 +108,8 @@ CREATE TABLE updates (
     "date" date NOT NULL,
     CONSTRAINT updates_pkey PRIMARY KEY(date)
 );
+
+CREATE LANGUAGE plpgsql;
 
 -- FUNCTION update_status
 -- This keeps the updates table up to date for the time graphs.
@@ -443,4 +445,3 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     RETURN 1;
     END;
 $$ LANGUAGE plpgsql;
-

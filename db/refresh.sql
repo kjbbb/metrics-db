@@ -1,5 +1,5 @@
-/* Copyright 2010 The Tor Project
- * See LICENSE for licensing information */
+-- Copyright 2010 The Tor Project
+-- See LICENSE for licensing information
 
 -- REFRESH.SQL
 -- This script should be run every time ernie is run to keep data sinks
