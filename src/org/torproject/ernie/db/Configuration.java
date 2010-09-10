@@ -39,6 +39,8 @@ public class Configuration {
   private boolean writeRelayDescriptorDatabase = false;
   private String relayDescriptorDatabaseJdbc =
       "jdbc:postgresql://localhost/tordir?user=ernie&password=password";
+  private boolean writeRelayDescriptorsRawFiles = false;
+  private String relayDescriptorRawFilesDirectory = "pg-import/";
   private boolean writeSanitizedBridges = false;
   private String sanitizedBridgesWriteDirectory = "sanitized-bridges/";
   private boolean importSanitizedBridges = false;
@@ -141,6 +143,11 @@ public class Configuration {
               line.split(" ")[1]) != 0;
         } else if (line.startsWith("RelayDescriptorDatabaseJDBC")) {
           this.relayDescriptorDatabaseJdbc = line.split(" ")[1];
+        } else if (line.startsWith("WriteRelayDescriptorsRawFiles")) {
+          this.writeRelayDescriptorsRawFiles = Integer.parseInt(
+              line.split(" ")[1]) != 0;
+        } else if (line.startsWith("RelayDescriptorRawFilesDirectory")) {
+          this.relayDescriptorRawFilesDirectory = line.split(" ")[1];
         } else if (line.startsWith("WriteSanitizedBridges")) {
           this.writeSanitizedBridges = Integer.parseInt(
               line.split(" ")[1]) != 0;
@@ -249,7 +256,8 @@ public class Configuration {
     if ((this.importCachedRelayDescriptors ||
         this.importDirectoryArchives || this.downloadRelayDescriptors) &&
         !(this.writeDirectoryArchives ||
-        this.writeRelayDescriptorDatabase || this.writeConsensusStats ||
+        this.writeRelayDescriptorDatabase ||
+        this.writeRelayDescriptorsRawFiles || this.writeConsensusStats ||
         this.writeDirreqStats || this.writeBridgeStats ||
         this.writeServerDescriptorStats || this.writeConsensusHealth)) {
       logger.warning("We are configured to import/download relay "
@@ -337,6 +345,12 @@ public class Configuration {
   }
   public String getRelayDescriptorDatabaseJDBC() {
     return this.relayDescriptorDatabaseJdbc;
+  }
+  public boolean getWriteRelayDescriptorsRawFiles() {
+    return this.writeRelayDescriptorsRawFiles;
+  }
+  public String getRelayDescriptorRawFilesDirectory() {
+    return this.relayDescriptorRawFilesDirectory;
   }
   public boolean getWriteSanitizedBridges() {
     return this.writeSanitizedBridges;

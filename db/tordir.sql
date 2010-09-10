@@ -5,6 +5,7 @@
 -- Contains all of the descriptors published by routers.
 CREATE TABLE descriptor (
     descriptor CHARACTER(40) NOT NULL,
+    nickname CHARACTER VARYING(19) NOT NULL,
     address CHARACTER VARYING(15) NOT NULL,
     orport INTEGER NOT NULL,
     dirport INTEGER NOT NULL,
@@ -14,7 +15,20 @@ CREATE TABLE descriptor (
     platform CHARACTER VARYING(256),
     published TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     uptime BIGINT,
+    extrainfo CHARACTER(40),
+    rawdesc BYTEA NOT NULL,
     CONSTRAINT descriptor_pkey PRIMARY KEY (descriptor)
+);
+
+-- TABLE extrainfo
+-- Contains all of the extra-info descriptors published by the routers.
+CREATE TABLE extrainfo (
+    extrainfo CHARACTER(40) NOT NULL,
+    nickname CHARACTER VARYING(19) NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL,
+    published TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    rawdesc BYTEA NOT NULL,
+    CONSTRAINT extrainfo_pkey PRIMARY KEY (extrainfo)
 );
 
 -- TABLE statusentry
@@ -22,7 +36,13 @@ CREATE TABLE descriptor (
 -- statusentry references a valid descriptor.
 CREATE TABLE statusentry (
     validafter TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    nickname CHARACTER VARYING(19) NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL,
     descriptor CHARACTER(40) NOT NULL,
+    published TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    address CHARACTER VARYING(15) NOT NULL,
+    orport INTEGER NOT NULL,
+    dirport INTEGER NOT NULL,
     isauthority BOOLEAN DEFAULT FALSE NOT NULL,
     isbadexit BOOLEAN DEFAULT FALSE NOT NULL,
     isbaddirectory BOOLEAN DEFAULT FALSE NOT NULL,
@@ -37,6 +57,10 @@ CREATE TABLE statusentry (
     isvalid BOOLEAN DEFAULT FALSE NOT NULL,
     isv2dir BOOLEAN DEFAULT FALSE NOT NULL,
     isv3dir BOOLEAN DEFAULT FALSE NOT NULL,
+    version CHARACTER VARYING(50),
+    bandwidth BIGINT,
+    ports TEXT,
+    rawdesc BYTEA NOT NULL,
     CONSTRAINT statusentry_pkey PRIMARY KEY (validafter, descriptor)
 );
 

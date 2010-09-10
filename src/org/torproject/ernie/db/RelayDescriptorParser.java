@@ -126,13 +126,17 @@ public class RelayDescriptorParser {
         boolean isConsensus = true;
         int exit = 0, fast = 0, guard = 0, running = 0, stable = 0;
         String validAfterTime = null, descriptorIdentity = null,
-            serverDesc = null;
+            nickname = null, relayIdentity = null, serverDesc = null,
+            version = null, ports = null;
         StringBuilder descriptorIdentities = new StringBuilder();
-        String fingerprint = null, dirSource = null;
-        long validAfter = -1L;
+        String fingerprint = null, dirSource = null, address = null;
+        long validAfter = -1L, published = -1L, bandwidth = -1L,
+            orPort = 0L, dirPort = 0L;
         SortedSet<String> dirSources = new TreeSet<String>();
         SortedSet<String> serverDescriptors = new TreeSet<String>();
         SortedSet<String> hashedRelayIdentities = new TreeSet<String>();
+        SortedSet<String> relayFlags = null;
+        StringBuilder rawStatusEntry = null;
         while ((line = br.readLine()) != null) {
           if (line.equals("vote-status vote")) {
             isConsensus = false;
@@ -146,20 +150,39 @@ public class RelayDescriptorParser {
           } else if (line.startsWith("fingerprint ")) {
             fingerprint = line.split(" ")[1];
           } else if (line.startsWith("r ")) {
-            String publishedTime = line.split(" ")[4] + " "
-                + line.split(" ")[5];
-            String relayIdentity = Hex.encodeHexString(
-                Base64.decodeBase64(line.split(" ")[2] + "=")).
+            if (relayIdentity != null && this.rddi != null) {
+              byte[] rawDescriptor = rawStatusEntry.toString().getBytes();
+              this.rddi.addStatusEntry(validAfter, nickname,
+                  relayIdentity, serverDesc, published, address, orPort,
+                  dirPort, relayFlags, version, bandwidth, ports,
+                  rawDescriptor);
+              relayFlags = null;
+              version = null;
+              bandwidth = -1L;
+              ports = null;
+            }
+            rawStatusEntry = new StringBuilder(line + "\n");
+            String[] parts = line.split(" ");
+            String publishedTime = parts[4] + " " + parts[5];
+            nickname = parts[1];
+            relayIdentity = Hex.encodeHexString(
+                Base64.decodeBase64(parts[2] + "=")).
                 toLowerCase();
             serverDesc = Hex.encodeHexString(Base64.decodeBase64(
-                line.split(" ")[3] + "=")).toLowerCase();
+                parts[3] + "=")).toLowerCase();
             serverDescriptors.add(publishedTime + "," + relayIdentity
                 + "," + serverDesc);
             hashedRelayIdentities.add(DigestUtils.shaHex(
-                Base64.decodeBase64(line.split(" ")[2] + "=")).
+                Base64.decodeBase64(parts[2] + "=")).
                 toUpperCase());
-            descriptorIdentity = line.split(" ")[3];
+            descriptorIdentity = parts[3];
+            published = parseFormat.parse(parts[4] + " " + parts[5]).
+                getTime();
+            address = parts[6];
+            orPort = Long.parseLong(parts[7]);
+            dirPort = Long.parseLong(parts[8]);
           } else if (line.startsWith("s ")) {
+            rawStatusEntry.append(line + "\n");
             if (line.contains(" Running")) {
               exit += line.contains(" Exit") ? 1 : 0;
               fast += line.contains(" Fast") ? 1 : 0;
@@ -168,16 +191,35 @@ public class RelayDescriptorParser {
               running++;
               descriptorIdentities.append("," + descriptorIdentity);
             }
-            if (this.rddi != null) {
-              SortedSet<String> flags = new TreeSet<String>();
-              if (line.length() > 2) {
-                for (String flag : line.substring(2).split(" ")) {
-                  flags.add(flag);
-                }
+            relayFlags = new TreeSet<String>();
+            if (line.length() > 2) {
+              for (String flag : line.substring(2).split(" ")) {
+                relayFlags.add(flag);
               }
-              this.rddi.addStatusEntry(validAfter, serverDesc, flags);
             }
+          } else if (line.startsWith("v ")) {
+            rawStatusEntry.append(line + "\n");
+            version = line.substring(2);
+          } else if (line.startsWith("w ")) {
+            rawStatusEntry.append(line + "\n");
+            String[] parts = line.split(" ");
+            for (String part : parts) {
+              if (part.startsWith("Bandwidth=")) {
+                bandwidth = Long.parseLong(part.substring(
+                    "Bandwidth=".length()));
+              }
+            }
+          } else if (line.startsWith("p ")) {
+            rawStatusEntry.append(line + "\n");
+            ports = line.substring(2);
           }
+        }
+        if (relayIdentity != null && this.rddi != null) {
+          byte[] rawDescriptor = rawStatusEntry.toString().getBytes();
+          this.rddi.addStatusEntry(validAfter, nickname,
+              relayIdentity, serverDesc, published, address, orPort,
+              dirPort, relayFlags, version, bandwidth, ports,
+              rawDescriptor);
         }
         if (isConsensus) {
           if (this.bsfh != null) {
@@ -233,6 +275,7 @@ public class RelayDescriptorParser {
             publishedTime = null, bandwidthLine = null,
             extraInfoDigest = null, relayIdentifier = null;
         String[] parts = line.split(" ");
+        String nickname = parts[1];
         String address = parts[2];
         int orPort = Integer.parseInt(parts[3]);
         int dirPort = Integer.parseInt(parts[4]);
@@ -290,11 +333,12 @@ public class RelayDescriptorParser {
           long bandwidthBurst = Long.parseLong(bwParts[2]);
           long bandwidthObserved = Long.parseLong(bwParts[3]);
           String platform = platformLine.substring("platform ".length());
-          this.rddi.addServerDescriptor(digest, address, orPort, dirPort,
-              bandwidthAvg, bandwidthBurst, bandwidthObserved, platform,
-              published, uptime);
+          this.rddi.addServerDescriptor(digest, nickname, address, orPort,
+              dirPort, bandwidthAvg, bandwidthBurst, bandwidthObserved,
+              platform, published, uptime, extraInfoDigest, data);
         }
       } else if (line.startsWith("extra-info ")) {
+        String nickname = line.split(" ")[1];
         String publishedTime = null, relayIdentifier = line.split(" ")[2];
         long published = -1L;
         String dir = line.split(" ")[2];
@@ -355,6 +399,10 @@ public class RelayDescriptorParser {
         if (this.rdd != null && digest != null) {
           this.rdd.haveParsedExtraInfoDescriptor(publishedTime,
               relayIdentifier.toLowerCase(), digest);
+        }
+        if (this.rddi != null && digest != null) {
+          this.rddi.addExtraInfoDescriptor(digest, nickname,
+              dir.toLowerCase(), published, data);
         }
       }
     } catch (IOException e) {

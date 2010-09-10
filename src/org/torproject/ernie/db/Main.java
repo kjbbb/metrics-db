@@ -57,9 +57,13 @@ public class Main {
 
     // Prepare writing relay descriptors to database
     RelayDescriptorDatabaseImporter rddi =
-        config.getWriteRelayDescriptorDatabase() ?
+        config.getWriteRelayDescriptorDatabase() ||
+        config.getWriteRelayDescriptorsRawFiles() ?
         new RelayDescriptorDatabaseImporter(
-        config.getRelayDescriptorDatabaseJDBC()) : null;
+        config.getWriteRelayDescriptorDatabase() ?
+        config.getRelayDescriptorDatabaseJDBC() : null,
+        config.getWriteRelayDescriptorsRawFiles() ?
+        config.getRelayDescriptorRawFilesDirectory() : null) : null;
 
     // Prepare relay descriptor parser (only if we are writing stats or
     // directory archives to disk)

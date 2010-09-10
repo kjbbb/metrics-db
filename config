@@ -86,6 +86,14 @@
 ## JDBC string for relay descriptor database
 #RelayDescriptorDatabaseJDBC jdbc:postgresql://localhost/tordir?user=ernie&password=password
 #
+## Write relay descriptors to raw text files for importing them into a
+## database using PostgreSQL's \copy command
+#WriteRelayDescriptorsRawFiles 0
+#
+## Relative path to directory to write raw text files; note that existing
+## files will be overwritten!
+#RelayDescriptorRawFilesDirectory pg-import/
+#
 ## Write statistics about the current consensus and votes to the
 ## website
 #WriteConsensusHealth 0
