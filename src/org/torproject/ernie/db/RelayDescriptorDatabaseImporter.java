@@ -156,41 +156,40 @@ public final class RelayDescriptorDatabaseImporter {
         this.psRs.setString(2, descriptor);
         ResultSet rs = psRs.executeQuery();
         rs.next();
-        if (rs.getInt(1) > 0) {
-          return;
-        }
-        this.psR.clearParameters();
-        this.psR.setTimestamp(1, validAfterTimestamp, cal);
-        this.psR.setString(2, nickname);
-        this.psR.setString(3, fingerprint);
-        this.psR.setString(4, descriptor);
-        this.psR.setTimestamp(5, new Timestamp(published), cal);
-        this.psR.setString(6, address);
-        this.psR.setLong(7, orPort);
-        this.psR.setLong(8, dirPort);
-        this.psR.setBoolean(9, flags.contains("Authority"));
-        this.psR.setBoolean(10, flags.contains("BadExit"));
-        this.psR.setBoolean(11, flags.contains("BadDirectory"));
-        this.psR.setBoolean(12, flags.contains("Exit"));
-        this.psR.setBoolean(13, flags.contains("Fast"));
-        this.psR.setBoolean(14, flags.contains("Guard"));
-        this.psR.setBoolean(15, flags.contains("HSDir"));
-        this.psR.setBoolean(16, flags.contains("Named"));
-        this.psR.setBoolean(17, flags.contains("Stable"));
-        this.psR.setBoolean(18, flags.contains("Running"));
-        this.psR.setBoolean(19, flags.contains("Unnamed"));
-        this.psR.setBoolean(20, flags.contains("Valid"));
-        this.psR.setBoolean(21, flags.contains("V2Dir"));
-        this.psR.setBoolean(22, flags.contains("V3Dir"));
-        this.psR.setString(23, version);
-        this.psR.setLong(24, bandwidth);
-        this.psR.setString(25, ports);
-        this.psR.setBytes(26, rawDescriptor);
-        this.psR.executeUpdate();
-        rrsCount++;
-        if (rrsCount % autoCommitCount == 0)  {
-          this.conn.commit();
-          rrsCount = 0;
+        if (rs.getInt(1) == 0) {
+          this.psR.clearParameters();
+          this.psR.setTimestamp(1, validAfterTimestamp, cal);
+          this.psR.setString(2, nickname);
+          this.psR.setString(3, fingerprint);
+          this.psR.setString(4, descriptor);
+          this.psR.setTimestamp(5, new Timestamp(published), cal);
+          this.psR.setString(6, address);
+          this.psR.setLong(7, orPort);
+          this.psR.setLong(8, dirPort);
+          this.psR.setBoolean(9, flags.contains("Authority"));
+          this.psR.setBoolean(10, flags.contains("BadExit"));
+          this.psR.setBoolean(11, flags.contains("BadDirectory"));
+          this.psR.setBoolean(12, flags.contains("Exit"));
+          this.psR.setBoolean(13, flags.contains("Fast"));
+          this.psR.setBoolean(14, flags.contains("Guard"));
+          this.psR.setBoolean(15, flags.contains("HSDir"));
+          this.psR.setBoolean(16, flags.contains("Named"));
+          this.psR.setBoolean(17, flags.contains("Stable"));
+          this.psR.setBoolean(18, flags.contains("Running"));
+          this.psR.setBoolean(19, flags.contains("Unnamed"));
+          this.psR.setBoolean(20, flags.contains("Valid"));
+          this.psR.setBoolean(21, flags.contains("V2Dir"));
+          this.psR.setBoolean(22, flags.contains("V3Dir"));
+          this.psR.setString(23, version);
+          this.psR.setLong(24, bandwidth);
+          this.psR.setString(25, ports);
+          this.psR.setBytes(26, rawDescriptor);
+          this.psR.executeUpdate();
+          rrsCount++;
+          if (rrsCount % autoCommitCount == 0)  {
+            this.conn.commit();
+            rrsCount = 0;
+          }
         }
       }
       if (this.statusentryOut != null) {
@@ -244,29 +243,28 @@ public final class RelayDescriptorDatabaseImporter {
         this.psDs.setString(1, descriptor);
         ResultSet rs = psDs.executeQuery();
         rs.next();
-        if (rs.getInt(1) > 0) {
-          return;
-        }
-        this.psD.clearParameters();
-        this.psD.setString(1, descriptor);
-        this.psD.setString(2, nickname);
-        this.psD.setString(3, address);
-        this.psD.setInt(4, orPort);
-        this.psD.setInt(5, dirPort);
-        this.psD.setLong(6, bandwidthAvg);
-        this.psD.setLong(7, bandwidthBurst);
-        this.psD.setLong(8, bandwidthObserved);
-        this.psD.setString(9, new String(platform.getBytes(),
-            "US-ASCII"));
-        this.psD.setTimestamp(10, new Timestamp(published), cal);
-        this.psD.setLong(11, uptime);
-        this.psD.setString(12, extraInfoDigest);
-        this.psD.setBytes(13, rawDescriptor);
-        this.psD.executeUpdate();
-        rdsCount++;
-        if (rdsCount % autoCommitCount == 0)  {
-          this.conn.commit();
-          rdsCount = 0;
+        if (rs.getInt(1) == 0) {
+          this.psD.clearParameters();
+          this.psD.setString(1, descriptor);
+          this.psD.setString(2, nickname);
+          this.psD.setString(3, address);
+          this.psD.setInt(4, orPort);
+          this.psD.setInt(5, dirPort);
+          this.psD.setLong(6, bandwidthAvg);
+          this.psD.setLong(7, bandwidthBurst);
+          this.psD.setLong(8, bandwidthObserved);
+          this.psD.setString(9, new String(platform.getBytes(),
+              "US-ASCII"));
+          this.psD.setTimestamp(10, new Timestamp(published), cal);
+          this.psD.setLong(11, uptime);
+          this.psD.setString(12, extraInfoDigest);
+          this.psD.setBytes(13, rawDescriptor);
+          this.psD.executeUpdate();
+          rdsCount++;
+          if (rdsCount % autoCommitCount == 0)  {
+            this.conn.commit();
+            rdsCount = 0;
+          }
         }
       }
       if (this.descriptorOut != null) {
@@ -306,20 +304,19 @@ public final class RelayDescriptorDatabaseImporter {
         this.psEs.setString(1, extraInfoDigest);
         ResultSet rs = psEs.executeQuery();
         rs.next();
-        if (rs.getInt(1) > 0) {
-          return;
-        }
-        this.psE.clearParameters();
-        this.psE.setString(1, extraInfoDigest);
-        this.psE.setString(2, nickname);
-        this.psE.setString(3, fingerprint);
-        this.psE.setTimestamp(4, new Timestamp(published), cal);
-        this.psE.setBytes(5, rawDescriptor);
-        this.psE.executeUpdate();
-        resCount++;
-        if (resCount % autoCommitCount == 0)  {
-          this.conn.commit();
-          resCount = 0;
+        if (rs.getInt(1) == 0) {
+          this.psE.clearParameters();
+          this.psE.setString(1, extraInfoDigest);
+          this.psE.setString(2, nickname);
+          this.psE.setString(3, fingerprint);
+          this.psE.setTimestamp(4, new Timestamp(published), cal);
+          this.psE.setBytes(5, rawDescriptor);
+          this.psE.executeUpdate();
+          resCount++;
+          if (resCount % autoCommitCount == 0)  {
+            this.conn.commit();
+            resCount = 0;
+          }
         }
       }
       if (this.extrainfoOut != null) {
@@ -346,17 +343,19 @@ public final class RelayDescriptorDatabaseImporter {
    */
   public void closeConnection() {
     /* commit any stragglers before closing */
-    try {
-      this.conn.commit();
-    } catch (SQLException e)  {
-      this.logger.log(Level.WARNING, "Could not commit final records to "
-          + "database", e);
-    }
-    try {
-      this.conn.close();
-    } catch (SQLException e) {
-      this.logger.log(Level.WARNING, "Could not close database "
-          + "connection.", e);
+    if (this.conn != null) {
+      try {
+        this.conn.commit();
+      } catch (SQLException e)  {
+        this.logger.log(Level.WARNING, "Could not commit final records to "
+            + "database", e);
+      }
+      try {
+        this.conn.close();
+      } catch (SQLException e) {
+        this.logger.log(Level.WARNING, "Could not close database "
+            + "connection.", e);
+      }
     }
     /* Close raw import files. */
     if (this.statusentryOut != null) {

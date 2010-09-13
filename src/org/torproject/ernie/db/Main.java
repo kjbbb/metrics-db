@@ -72,6 +72,7 @@ public class Main {
         config.getWriteServerDescriptorStats() ||
         config.getWriteDirectoryArchives() ||
         config.getWriteRelayDescriptorDatabase() ||
+        config.getWriteRelayDescriptorsRawFiles() ||
         config.getWriteConsensusHealth() ?
         new RelayDescriptorParser(csfh, bsfh, dsfh, sdsfh, aw, rddi, chc,
             countries, directories) : null;
