@@ -181,7 +181,7 @@ public class RelayDescriptorParser {
             address = parts[6];
             orPort = Long.parseLong(parts[7]);
             dirPort = Long.parseLong(parts[8]);
-          } else if (line.startsWith("s ")) {
+          } else if (line.startsWith("s ") || line.equals("s")) {
             rawStatusEntry.append(line + "\n");
             if (line.contains(" Running")) {
               exit += line.contains(" Exit") ? 1 : 0;

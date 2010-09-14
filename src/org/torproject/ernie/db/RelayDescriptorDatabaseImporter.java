@@ -216,7 +216,9 @@ public final class RelayDescriptorDatabaseImporter {
             + (flags.contains("Valid") ? "t" : "f") + "\t"
             + (flags.contains("V2Dir") ? "t" : "f") + "\t"
             + (flags.contains("V3Dir") ? "t" : "f") + "\t"
-            + version + "\t" + bandwidth + "\t" + ports + "\t");
+            + (version != null ? version : "\\N") + "\t"
+            + (bandwidth >= 0 ? bandwidth : "\\N") + "\t"
+            + (ports != null ? ports : "\\N") + "\t");
         this.statusentryOut.write(PGbytea.toPGString(rawDescriptor).
             replaceAll("\\\\\\\\", "\\\\\\\\\\\\\\\\") + "\n");
       }
@@ -274,9 +276,12 @@ public final class RelayDescriptorDatabaseImporter {
         this.descriptorOut.write(descriptor.toLowerCase() + "\t"
             + nickname + "\t" + address + "\t" + orPort + "\t" + dirPort
             + "\t" + bandwidthAvg + "\t" + bandwidthBurst + "\t"
-            + bandwidthObserved + "\t" + new String(platform.getBytes(),
-            "US-ASCII") + "\t" + dateTimeFormat.format(published) + "\t"
-            + uptime + "\t" + extraInfoDigest + "\t");
+            + bandwidthObserved + "\t"
+            + (platform != null && platform.length() > 0
+            ? new String(platform.getBytes(), "US-ASCII") : "\\N") + "\t"
+            + dateTimeFormat.format(published) + "\t"
+            + (uptime >= 0 ? uptime : "\\N") + "\t"
+            + (extraInfoDigest != null ? extraInfoDigest : "\\N") + "\t");
         this.descriptorOut.write(PGbytea.toPGString(rawDescriptor).
             replaceAll("\\\\\\\\", "\\\\\\\\\\\\\\\\") + "\n");
       }
