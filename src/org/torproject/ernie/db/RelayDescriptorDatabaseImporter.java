@@ -114,7 +114,7 @@ public final class RelayDescriptorDatabaseImporter {
             + "(descriptor, nickname, address, orport, dirport, "
             + "bandwidthavg, bandwidthburst, bandwidthobserved, "
             + "platform, published, uptime, extrainfo, rawdesc) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         this.psE = conn.prepareStatement("INSERT INTO extrainfo "
             + "(extrainfo, nickname, fingerprint, published, rawdesc) "
             + "VALUES (?, ?, ?, ?, ?)");
