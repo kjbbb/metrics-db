@@ -405,7 +405,7 @@ public class ConsensusHealthChecker {
           + "            <br/>\n"
           + "            <font size=\"2\">\n"
           + "              <a href=\"exonerator.html\">ExoneraTor</a>\n"
-          + "              <a href=\"relaysearch.html\">Relay Search</a>\n"
+          + "              <a href=\"relay-search.html\">Relay Search</a>\n"
           + "              <a class=\"current\">Consensus Health</a>\n"
           + "              <a href=\"log.html\">Last Log</a>\n"
           + "            </font>\n"
