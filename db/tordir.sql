@@ -9,6 +9,7 @@ CREATE TABLE descriptor (
     address CHARACTER VARYING(15) NOT NULL,
     orport INTEGER NOT NULL,
     dirport INTEGER NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL,
     bandwidthavg BIGINT NOT NULL,
     bandwidthburst BIGINT NOT NULL,
     bandwidthobserved BIGINT NOT NULL,

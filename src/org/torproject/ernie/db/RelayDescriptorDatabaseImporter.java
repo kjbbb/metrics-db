@@ -112,9 +112,10 @@ public final class RelayDescriptorDatabaseImporter {
             + "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         this.psD = conn.prepareStatement("INSERT INTO descriptor "
             + "(descriptor, nickname, address, orport, dirport, "
-            + "bandwidthavg, bandwidthburst, bandwidthobserved, "
-            + "platform, published, uptime, extrainfo, rawdesc) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            + "fingerprint, bandwidthavg, bandwidthburst, "
+            + "bandwidthobserved, platform, published, uptime, "
+            + "extrainfo, rawdesc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+            + "?, ?, ?, ?)");
         this.psE = conn.prepareStatement("INSERT INTO extrainfo "
             + "(extrainfo, nickname, fingerprint, published, rawdesc) "
             + "VALUES (?, ?, ?, ?, ?)");
@@ -235,10 +236,10 @@ public final class RelayDescriptorDatabaseImporter {
    * Insert server descriptor into database.
    */
   public void addServerDescriptor(String descriptor, String nickname,
-      String address, int orPort, int dirPort, long bandwidthAvg,
-      long bandwidthBurst, long bandwidthObserved, String platform,
-      long published, long uptime, String extraInfoDigest,
-      byte[] rawDescriptor) {
+      String address, int orPort, int dirPort, String relayIdentifier,
+      long bandwidthAvg, long bandwidthBurst, long bandwidthObserved,
+      String platform, long published, long uptime,
+      String extraInfoDigest, byte[] rawDescriptor) {
     try {
       if (this.psDs != null && this.psD != null) {
         Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
@@ -252,15 +253,16 @@ public final class RelayDescriptorDatabaseImporter {
           this.psD.setString(3, address);
           this.psD.setInt(4, orPort);
           this.psD.setInt(5, dirPort);
-          this.psD.setLong(6, bandwidthAvg);
-          this.psD.setLong(7, bandwidthBurst);
-          this.psD.setLong(8, bandwidthObserved);
-          this.psD.setString(9, new String(platform.getBytes(),
+          this.psD.setString(6, relayIdentifier);
+          this.psD.setLong(7, bandwidthAvg);
+          this.psD.setLong(8, bandwidthBurst);
+          this.psD.setLong(9, bandwidthObserved);
+          this.psD.setString(10, new String(platform.getBytes(),
               "US-ASCII"));
-          this.psD.setTimestamp(10, new Timestamp(published), cal);
-          this.psD.setLong(11, uptime);
-          this.psD.setString(12, extraInfoDigest);
-          this.psD.setBytes(13, rawDescriptor);
+          this.psD.setTimestamp(11, new Timestamp(published), cal);
+          this.psD.setLong(12, uptime);
+          this.psD.setString(13, extraInfoDigest);
+          this.psD.setBytes(14, rawDescriptor);
           this.psD.executeUpdate();
           rdsCount++;
           if (rdsCount % autoCommitCount == 0)  {
@@ -275,8 +277,8 @@ public final class RelayDescriptorDatabaseImporter {
         dateTimeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
         this.descriptorOut.write(descriptor.toLowerCase() + "\t"
             + nickname + "\t" + address + "\t" + orPort + "\t" + dirPort
-            + "\t" + bandwidthAvg + "\t" + bandwidthBurst + "\t"
-            + bandwidthObserved + "\t"
+            + "\t" + relayIdentifier + "\t" + bandwidthAvg + "\t"
+            + bandwidthBurst + "\t" + bandwidthObserved + "\t"
             + (platform != null && platform.length() > 0
             ? new String(platform.getBytes(), "US-ASCII") : "\\N") + "\t"
             + dateTimeFormat.format(published) + "\t"

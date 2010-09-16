@@ -334,8 +334,9 @@ public class RelayDescriptorParser {
           long bandwidthObserved = Long.parseLong(bwParts[3]);
           String platform = platformLine.substring("platform ".length());
           this.rddi.addServerDescriptor(digest, nickname, address, orPort,
-              dirPort, bandwidthAvg, bandwidthBurst, bandwidthObserved,
-              platform, published, uptime, extraInfoDigest, data);
+              dirPort, relayIdentifier, bandwidthAvg, bandwidthBurst,
+              bandwidthObserved, platform, published, uptime,
+              extraInfoDigest, data);
         }
       } else if (line.startsWith("extra-info ")) {
         String nickname = line.split(" ")[1];
