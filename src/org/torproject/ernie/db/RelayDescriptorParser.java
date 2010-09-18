@@ -150,7 +150,8 @@ public class RelayDescriptorParser {
           } else if (line.startsWith("fingerprint ")) {
             fingerprint = line.split(" ")[1];
           } else if (line.startsWith("r ")) {
-            if (relayIdentity != null && this.rddi != null) {
+            if (isConsensus && relayIdentity != null &&
+                this.rddi != null) {
               byte[] rawDescriptor = rawStatusEntry.toString().getBytes();
               this.rddi.addStatusEntry(validAfter, nickname,
                   relayIdentity, serverDesc, published, address, orPort,
@@ -214,18 +215,18 @@ public class RelayDescriptorParser {
             ports = line.substring(2);
           }
         }
-        if (relayIdentity != null && this.rddi != null) {
-          byte[] rawDescriptor = rawStatusEntry.toString().getBytes();
-          this.rddi.addStatusEntry(validAfter, nickname,
-              relayIdentity, serverDesc, published, address, orPort,
-              dirPort, relayFlags, version, bandwidth, ports,
-              rawDescriptor);
-        }
         if (isConsensus) {
+          if (relayIdentity != null && this.rddi != null) {
+            byte[] rawDescriptor = rawStatusEntry.toString().getBytes();
+            this.rddi.addStatusEntry(validAfter, nickname,
+                relayIdentity, serverDesc, published, address, orPort,
+                dirPort, relayFlags, version, bandwidth, ports,
+                rawDescriptor);
+          }
           if (this.bsfh != null) {
             for (String hashedRelayIdentity : hashedRelayIdentities) {
               this.bsfh.addHashedRelay(hashedRelayIdentity);
-            }    
+            }
           }
           if (this.csfh != null) {
             this.csfh.addConsensusResults(validAfterTime, exit, fast,
