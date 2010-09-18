@@ -663,10 +663,14 @@ public class ConsensusHealthChecker {
         bw.write("          <tr>\n");
         if (consensusAssignedFlags.containsKey(relayKey) &&
             consensusAssignedFlags.get(relayKey).contains(" Named")) {
-          bw.write("            <td id=\"" + nickname + "\">"
-              + fingerprint + "</td>\n");
+          bw.write("            <td id=\"" + nickname
+              + "\"><a href=\"relay.html?fingerprint="
+              + relayKey.split(" ")[0] + "\" target=\"_blank\">"
+              + fingerprint + "</a></td>\n");
         } else {
-          bw.write("            <td>" + fingerprint + "</td>\n");
+          bw.write("            <td><a href=\"relay.html?fingerprint="
+              + fingerprint + "\" target=\"_blank\">" + fingerprint
+              + "</a></td>\n");
         }
         bw.write("            <td>" + nickname + "</td>\n");
         SortedSet<String> relevantFlags = new TreeSet<String>();
