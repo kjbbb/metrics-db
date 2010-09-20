@@ -62,8 +62,15 @@ CREATE TABLE statusentry (
     bandwidth BIGINT,
     ports TEXT,
     rawdesc BYTEA NOT NULL,
-    CONSTRAINT statusentry_pkey PRIMARY KEY (validafter, descriptor)
+    CONSTRAINT statusentry_pkey PRIMARY KEY (validafter, fingerprint)
 );
+
+-- Create the various indexes we need for searching relays
+CREATE INDEX statusentry_address ON statusentry (address);
+CREATE INDEX statusentry_descriptor ON statusentry (descriptor);
+CREATE INDEX statusentry_fingerprint ON statusentry (fingerprint);
+CREATE INDEX statusentry_nickname_lower ON statusentry (LOWER(nickname));
+CREATE INDEX statusentry_validafter ON statusentry (validafter);
 
 -- TABLE network_size
 -- TODO Instead of having a separate column for each flag we could add
