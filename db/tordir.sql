@@ -72,6 +72,9 @@ CREATE INDEX statusentry_fingerprint ON statusentry (fingerprint);
 CREATE INDEX statusentry_nickname_lower ON statusentry (LOWER(nickname));
 CREATE INDEX statusentry_validafter ON statusentry (validafter);
 
+-- And create an index that we use for precalculating statistics
+CREATE INDEX statusentry_validafter_date ON statusentry (DATE(validafter));
+
 -- TABLE network_size
 -- TODO Instead of having a separate column for each flag we could add
 -- two columns 'flag' and 'relays' to add more flags more easily.
@@ -222,11 +225,16 @@ ON descriptor
 CREATE OR REPLACE FUNCTION refresh_relay_statuses_per_day()
 RETURNS INTEGER AS $$
     BEGIN
-    DELETE FROM relay_statuses_per_day;
+    DELETE FROM relay_statuses_per_day
+    WHERE date IN (SELECT * FROM updates);
     INSERT INTO relay_statuses_per_day (date, count)
     SELECT DATE(validafter) AS date, COUNT(*) AS count
     FROM (SELECT DISTINCT validafter
-          FROM statusentry) distinct_consensuses
+          FROM statusentry
+          WHERE DATE(validafter) >= (SELECT MIN(date) FROM updates)
+          AND DATE(validafter) <= (SELECT MAX(date) FROM updates)
+          AND DATE(validafter) IN (SELECT date FROM updates))
+          distinct_consensuses
     GROUP BY DATE(validafter);
     RETURN 1;
     END;
@@ -242,7 +250,10 @@ $$ LANGUAGE plpgsql;
 -- FUNCTION refresh_network_size()
 CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
     BEGIN
-        --Insert any new dates, or blank dates--
+
+    DELETE FROM network_size
+    WHERE date IN (SELECT * FROM updates);
+
         INSERT INTO network_size
         (date, avg_running, avg_exit, avg_guard, avg_fast, avg_stable)
         SELECT
@@ -259,39 +270,12 @@ CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
           FROM statusentry
           JOIN relay_statuses_per_day
           ON DATE(validafter) = relay_statuses_per_day.date
-          WHERE isrunning = TRUE AND
-                DATE(validafter) NOT IN
-                  (SELECT DATE(date) FROM network_size)
+          WHERE isrunning = TRUE
+              AND DATE(validafter) >= (SELECT MIN(date) FROM updates)
+              AND DATE(validafter) <= (SELECT MAX(date) FROM updates)
+              AND DATE(validafter) IN (SELECT date FROM updates)
           GROUP BY DATE(validafter), relay_statuses_per_day.count;
 
-        --Update any new values that may have already
-        --been inserted, but aren't complete.  based on the 'updates'
-        --table.
-        UPDATE network_size
-        SET avg_running=new_ns.avg_running,
-            avg_exit=new_ns.avg_exit,
-            avg_guard=new_ns.avg_guard,
-            avg_fast=new_ns.avg_fast,
-            avg_stable=new_ns.avg_stable
-        FROM (SELECT
-                 DATE(validafter) as date,
-                 COUNT(*) / relay_statuses_per_day.count AS avg_running,
-                  SUM(CASE WHEN isexit IS TRUE THEN 1 ELSE 0 END)
-                      / relay_statuses_per_day.count AS avg_exit,
-                  SUM(CASE WHEN isguard IS TRUE THEN 1 ELSE 0 END)
-                      / relay_statuses_per_day.count AS avg_guard,
-                  SUM(CASE WHEN isfast IS TRUE THEN 1 ELSE 0 END)
-                      / relay_statuses_per_day.count AS avg_fast,
-                  SUM(CASE WHEN isstable IS TRUE THEN 1 ELSE 0 END)
-                      / relay_statuses_per_day.count AS avg_stable
-            FROM statusentry
-            JOIN relay_statuses_per_day
-            ON DATE(validafter) = relay_statuses_per_day.date
-            WHERE isrunning = TRUE AND
-                  DATE(validafter) IN (SELECT DISTINCT date FROM updates)
-            GROUP BY DATE(validafter), relay_statuses_per_day.count)
-                AS new_ns
-       WHERE new_ns.date=network_size.date;
     RETURN 1;
     END;
 $$ LANGUAGE plpgsql;
@@ -299,6 +283,10 @@ $$ LANGUAGE plpgsql;
 -- FUNCTION refresh_relay_platforms()
 CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
     BEGIN
+
+    DELETE FROM relay_platforms
+    WHERE date IN (SELECT * FROM updates);
+
     INSERT INTO relay_platforms
     (date, avg_linux, avg_darwin, avg_bsd, avg_windows, avg_other)
     SELECT DATE(validafter),
@@ -319,38 +307,18 @@ CREATE OR REPLACE FUNCTION refresh_relay_platforms() RETURNS INTEGER AS $$
     ON statusentry.descriptor = descriptor.descriptor
     JOIN relay_statuses_per_day
     ON DATE(validafter) = relay_statuses_per_day.date
-    WHERE isrunning = TRUE AND
-          DATE(validafter) NOT IN (SELECT DATE(date) FROM relay_platforms)
+    WHERE isrunning = TRUE
+          AND DATE(validafter) >= (SELECT MIN(date) FROM updates)
+          AND DATE(validafter) <= (SELECT MAX(date) FROM updates)
+          AND DATE(validafter) IN (SELECT date FROM updates)
+          AND DATE(relay_statuses_per_day.date) >=
+              (SELECT MIN(date) FROM updates)
+          AND DATE(relay_statuses_per_day.date) <=
+              (SELECT MAX(date) FROM updates)
+          AND DATE(relay_statuses_per_day.date) IN
+              (SELECT date FROM updates)
     GROUP BY DATE(validafter), relay_statuses_per_day.count;
 
-   UPDATE relay_platforms
-   SET avg_linux=new_rp.avg_linux,
-       avg_darwin=new_rp.avg_darwin,
-       avg_windows=new_rp.avg_windows,
-       avg_bsd=new_rp.avg_bsd,
-       avg_other=new_rp.avg_other
-   FROM (SELECT DATE(validafter),
-            SUM(CASE WHEN platform LIKE '%Linux%' THEN 1 ELSE 0 END) /
-                relay_statuses_per_day.count AS avg_linux,
-            SUM(CASE WHEN platform LIKE '%Darwin%' THEN 1 ELSE 0 END) /
-                relay_statuses_per_day.count AS avg_darwin,
-            SUM(CASE WHEN platform LIKE '%BSD%' THEN 1 ELSE 0 END) /
-                relay_statuses_per_day.count AS avg_bsd,
-            SUM(CASE WHEN platform LIKE '%Windows%' THEN 1 ELSE 0 END) /
-                relay_statuses_per_day.count AS avg_windows,
-            SUM(CASE WHEN platform NOT LIKE '%Windows%'
-                AND platform NOT LIKE '%Darwin%'
-                AND platform NOT LIKE '%BSD%'
-                AND platform NOT LIKE '%Linux%' THEN 1 ELSE 0 END) /
-                relay_statuses_per_day.count AS avg_other
-        FROM descriptor RIGHT JOIN statusentry
-        ON statusentry.descriptor = descriptor.descriptor
-        JOIN relay_statuses_per_day
-        ON DATE(validafter) = relay_statuses_per_day.date
-        WHERE isrunning = TRUE AND
-              DATE(validafter) IN (SELECT DISTINCT date FROM updates)
-        GROUP BY DATE(validafter), relay_statuses_per_day.count) as new_rp
-    WHERE new_rp.date=relay_platforms.date;
     RETURN 1;
     END;
 $$ LANGUAGE plpgsql;
@@ -358,6 +326,10 @@ $$ LANGUAGE plpgsql;
 -- FUNCTION refresh_relay_versions()
 CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
     BEGIN
+
+    DELETE FROM relay_versions
+    WHERE date IN (SELECT * FROM updates);
+
     INSERT INTO relay_versions
     (date, "0.1.0", "0.1.1", "0.1.2", "0.2.0", "0.2.1", "0.2.2", "0.2.3")
     SELECT DATE(validafter),
@@ -386,48 +358,17 @@ CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
     ON descriptor.descriptor = statusentry.descriptor
     JOIN relay_statuses_per_day
     ON DATE(validafter) = relay_statuses_per_day.date
-    WHERE isrunning = TRUE AND
-          DATE(validafter) NOT IN (SELECT DATE(date) FROM relay_versions)
+    WHERE isrunning = TRUE
+          AND DATE(validafter) >= (SELECT MIN(date) FROM updates)
+          AND DATE(validafter) <= (SELECT MAX(date) FROM updates)
+          AND DATE(validafter) IN (SELECT date FROM updates)
+          AND DATE(relay_statuses_per_day.date) >=
+              (SELECT MIN(date) FROM updates)
+          AND DATE(relay_statuses_per_day.date) <=
+              (SELECT MAX(date) FROM updates)
+          AND DATE(relay_statuses_per_day.date) IN
+              (SELECT date FROM updates)
     GROUP BY DATE(validafter), relay_statuses_per_day.count;
-
-    UPDATE relay_versions
-    SET "0.1.0"=new_rv."0.1.0",
-        "0.1.1"=new_rv."0.1.1",
-        "0.1.2"=new_rv."0.1.2",
-        "0.2.0"=new_rv."0.2.0",
-        "0.2.1"=new_rv."0.2.1",
-        "0.2.2"=new_rv."0.2.2",
-        "0.2.3"=new_rv."0.2.3"
-    FROM (SELECT DATE(validafter),
-            SUM(CASE WHEN substring(platform, 5, 5)
-                LIKE '0.1.0' THEN 1 ELSE 0 END)
-                / relay_statuses_per_day.count AS "0.1.0",
-            SUM(CASE WHEN substring(platform, 5, 5)
-                LIKE '0.1.1' THEN 1 ELSE 0 END)
-                / relay_statuses_per_day.count AS "0.1.1",
-            SUM(CASE WHEN substring(platform, 5, 5)
-                LIKE '0.1.2' THEN 1 ELSE 0 END)
-                / relay_statuses_per_day.count AS "0.1.2",
-            SUM(CASE WHEN substring(platform, 5, 5)
-                LIKE '0.2.0' THEN 1 ELSE 0 END)
-                / relay_statuses_per_day.count AS "0.2.0",
-            SUM(CASE WHEN substring(platform, 5, 5)
-                LIKE '0.2.1' THEN 1 ELSE 0 END)
-                / relay_statuses_per_day.count AS "0.2.1",
-            SUM(CASE WHEN substring(platform, 5, 5)
-                LIKE '0.2.2' THEN 1 ELSE 0 END)
-                / relay_statuses_per_day.count AS "0.2.2",
-            SUM(CASE WHEN substring(platform, 5, 5)
-                LIKE '0.2.3' THEN 1 ELSE 0 END)
-                / relay_statuses_per_day.count AS "0.2.3"
-        FROM descriptor RIGHT JOIN statusentry
-        ON descriptor.descriptor = statusentry.descriptor
-        JOIN relay_statuses_per_day
-        ON DATE(validafter) = relay_statuses_per_day.date
-        WHERE isrunning = TRUE AND
-              DATE(validafter) IN (SELECT DISTINCT date FROM updates)
-        GROUP BY DATE(validafter), relay_statuses_per_day.count) AS new_rv
-    WHERE new_rv.date=relay_versions.date;
 
     RETURN 1;
     END;
@@ -437,6 +378,10 @@ $$ LANGUAGE plpgsql;
 -- This keeps the table total_bandwidth up-to-date when necessary.
 CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     BEGIN
+
+    DELETE FROM total_bandwidth
+    WHERE date IN (SELECT * FROM updates);
+
     INSERT INTO total_bandwidth
     (bwavg, bwburst, bwobserved, date)
     SELECT (SUM(bandwidthavg)
@@ -450,30 +395,19 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     ON descriptor.descriptor = statusentry.descriptor
     JOIN relay_statuses_per_day
     ON DATE(validafter) = relay_statuses_per_day.date
-    WHERE isrunning = TRUE AND
-          DATE(validafter) NOT IN (SELECT date FROM total_bandwidth)
+    WHERE isrunning = TRUE
+          AND DATE(validafter) >= (SELECT MIN(date) FROM updates)
+          AND DATE(validafter) <= (SELECT MAX(date) FROM updates)
+          AND DATE(validafter) IN (SELECT date FROM updates)
+          AND DATE(relay_statuses_per_day.date) >=
+              (SELECT MIN(date) FROM updates)
+          AND DATE(relay_statuses_per_day.date) <=
+              (SELECT MAX(date) FROM updates)
+          AND DATE(relay_statuses_per_day.date) IN
+              (SELECT date FROM updates)
     GROUP BY DATE(validafter), relay_statuses_per_day.count;
-
-    UPDATE total_bandwidth
-    SET bwavg=new_tb.bwavg,
-        bwburst=new_tb.bwburst,
-        bwobserved=new_tb.bwobserved
-    FROM (SELECT (SUM(bandwidthavg)
-                / relay_statuses_per_day.count)::BIGINT AS bwavg,
-            (SUM(bandwidthburst)
-                / relay_statuses_per_day.count)::BIGINT AS bwburst,
-            (SUM(bandwidthobserved)
-                / relay_statuses_per_day.count)::BIGINT AS bwobserved,
-            DATE(validafter)
-        FROM descriptor RIGHT JOIN statusentry
-        ON descriptor.descriptor = statusentry.descriptor
-        JOIN relay_statuses_per_day
-        ON DATE(validafter) = relay_statuses_per_day.date
-        WHERE isrunning = TRUE AND
-              DATE(validafter) IN (SELECT DISTINCT date FROM updates)
-        GROUP BY DATE(validafter), relay_statuses_per_day.count) AS new_tb
-    WHERE new_tb.date = total_bandwidth.date;
 
     RETURN 1;
     END;
 $$ LANGUAGE plpgsql;
+
