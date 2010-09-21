@@ -216,12 +216,15 @@ public class RelayDescriptorParser {
           }
         }
         if (isConsensus) {
-          if (relayIdentity != null && this.rddi != null) {
-            byte[] rawDescriptor = rawStatusEntry.toString().getBytes();
-            this.rddi.addStatusEntry(validAfter, nickname,
-                relayIdentity, serverDesc, published, address, orPort,
-                dirPort, relayFlags, version, bandwidth, ports,
-                rawDescriptor);
+          if (this.rddi != null) {
+            this.rddi.addConsensus(validAfter, data);
+            if (relayIdentity != null) {
+              byte[] rawDescriptor = rawStatusEntry.toString().getBytes();
+              this.rddi.addStatusEntry(validAfter, nickname,
+                  relayIdentity, serverDesc, published, address, orPort,
+                  dirPort, relayFlags, version, bandwidth, ports,
+                  rawDescriptor);
+            }
           }
           if (this.bsfh != null) {
             for (String hashedRelayIdentity : hashedRelayIdentities) {
@@ -247,6 +250,9 @@ public class RelayDescriptorParser {
             this.chc.processConsensus(validAfterTime, data);
           }
         } else {
+          if (this.rddi != null) {
+            this.rddi.addVote(validAfter, dirSource, data);
+          }
           if (this.rdd != null) {
             this.rdd.haveParsedVote(validAfterTime, fingerprint,
                 serverDescriptors);

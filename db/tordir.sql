@@ -33,8 +33,8 @@ CREATE TABLE extrainfo (
 );
 
 -- TABLE statusentry
--- Contains all of the consensuses published by the directories. Each
--- statusentry references a valid descriptor.
+-- Contains all of the consensus entries published by the directories.
+-- Each statusentry references a valid descriptor.
 CREATE TABLE statusentry (
     validafter TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     nickname CHARACTER VARYING(19) NOT NULL,
@@ -63,6 +63,23 @@ CREATE TABLE statusentry (
     ports TEXT,
     rawdesc BYTEA NOT NULL,
     CONSTRAINT statusentry_pkey PRIMARY KEY (validafter, fingerprint)
+);
+
+-- TABLE consensus
+-- Contains all of the consensuses published by the directories.
+CREATE TABLE consensus (
+    validafter TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    rawdesc BYTEA NOT NULL,
+    CONSTRAINT consensus_pkey PRIMARY KEY (validafter)
+);
+
+-- TABLE vote
+-- Contains all of the votes published by the directories
+CREATE TABLE vote (
+    validafter TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    dirsource CHARACTER(40) NOT NULL,
+    rawdesc BYTEA NOT NULL,
+    CONSTRAINT vote_pkey PRIMARY KEY (validafter, dirsource)
 );
 
 -- Create the various indexes we need for searching relays
