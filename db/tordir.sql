@@ -121,14 +121,9 @@ CREATE TABLE relay_platforms (
 -- 'relays'.
 CREATE TABLE relay_versions (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    "0.1.0" INTEGER NOT NULL,
-    "0.1.1" INTEGER NOT NULL,
-    "0.1.2" INTEGER NOT NULL,
-    "0.2.0" INTEGER NOT NULL,
-    "0.2.1" INTEGER NOT NULL,
-    "0.2.2" INTEGER NOT NULL,
-    "0.2.3" INTEGER NOT NULL,
-    CONSTRAINT relay_versions_pkey PRIMARY KEY(date)
+    version CHARACTER(5) NOT NULL,
+    relays INTEGER NOT NULL,
+    CONSTRAINT relay_versions_pkey PRIMARY KEY(date, version)
 );
 
 -- TABLE total_bandwidth
@@ -347,29 +342,9 @@ CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
     WHERE date IN (SELECT * FROM updates);
 
     INSERT INTO relay_versions
-    (date, "0.1.0", "0.1.1", "0.1.2", "0.2.0", "0.2.1", "0.2.2", "0.2.3")
-    SELECT DATE(validafter),
-        SUM(CASE WHEN substring(platform, 5, 5)
-            LIKE '0.1.0' THEN 1 ELSE 0 END)
-            / relay_statuses_per_day.count AS "0.1.0",
-        SUM(CASE WHEN substring(platform, 5, 5)
-            LIKE '0.1.1' THEN 1 ELSE 0 END)
-            / relay_statuses_per_day.count AS "0.1.1",
-        SUM(CASE WHEN substring(platform, 5, 5)
-            LIKE '0.1.2' THEN 1 ELSE 0 END)
-            / relay_statuses_per_day.count AS "0.1.2",
-        SUM(CASE WHEN substring(platform, 5, 5)
-            LIKE '0.2.0' THEN 1 ELSE 0 END)
-            / relay_statuses_per_day.count AS "0.2.0",
-        SUM(CASE WHEN substring(platform, 5, 5)
-            LIKE '0.2.1' THEN 1 ELSE 0 END)
-            / relay_statuses_per_day.count AS "0.2.1",
-        SUM(CASE WHEN substring(platform, 5, 5)
-            LIKE '0.2.2' THEN 1 ELSE 0 END)
-            / relay_statuses_per_day.count AS "0.2.2",
-        SUM(CASE WHEN substring(platform, 5, 5)
-            LIKE '0.2.3' THEN 1 ELSE 0 END)
-            / relay_statuses_per_day.count AS "0.2.3"
+    (date, version, relays)
+    SELECT DATE(validafter), SUBSTRING(platform, 5, 5) AS version,
+           COUNT(*) / relay_statuses_per_day.count AS relays
     FROM descriptor RIGHT JOIN statusentry
     ON descriptor.descriptor = statusentry.descriptor
     JOIN relay_statuses_per_day
@@ -384,7 +359,8 @@ CREATE OR REPLACE FUNCTION refresh_relay_versions() RETURNS INTEGER AS $$
               (SELECT MAX(date) FROM updates)
           AND DATE(relay_statuses_per_day.date) IN
               (SELECT date FROM updates)
-    GROUP BY DATE(validafter), relay_statuses_per_day.count;
+          AND platform IS NOT NULL
+    GROUP BY 1, 2, relay_statuses_per_day.count;
 
     RETURN 1;
     END;
