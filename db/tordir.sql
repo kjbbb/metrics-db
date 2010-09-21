@@ -134,13 +134,12 @@ CREATE TABLE relay_versions (
 -- TABLE total_bandwidth
 -- Contains information for the whole network's total bandwidth which is
 -- used in the bandwidth graphs.
--- TODO We should add bwadvertised as MIN(bwavg, bwobserved) which is used
--- by 0.2.0.x clients for path selection.
 CREATE TABLE total_bandwidth (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     bwavg BIGINT NOT NULL,
     bwburst BIGINT NOT NULL,
     bwobserved BIGINT NOT NULL,
+    bwadvertised BIGINT NOT NULL,
     CONSTRAINT total_bandwidth_pkey PRIMARY KEY(date)
 );
 
@@ -400,13 +399,15 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     WHERE date IN (SELECT * FROM updates);
 
     INSERT INTO total_bandwidth
-    (bwavg, bwburst, bwobserved, date)
+    (bwavg, bwburst, bwobserved, bwadvertised, date)
     SELECT (SUM(bandwidthavg)
             / relay_statuses_per_day.count)::BIGINT AS bwavg,
         (SUM(bandwidthburst)
             / relay_statuses_per_day.count)::BIGINT AS bwburst,
         (SUM(bandwidthobserved)
             / relay_statuses_per_day.count)::BIGINT AS bwobserved,
+        (SUM(LEAST(bandwidthavg, bandwidthobserved))
+            / relay_statuses_per_day.count)::BIGINT AS bwadvertised,
         DATE(validafter)
     FROM descriptor RIGHT JOIN statusentry
     ON descriptor.descriptor = statusentry.descriptor
