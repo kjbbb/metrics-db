@@ -93,8 +93,6 @@ CREATE INDEX statusentry_validafter ON statusentry (validafter);
 CREATE INDEX statusentry_validafter_date ON statusentry (DATE(validafter));
 
 -- TABLE network_size
--- TODO Instead of having a separate column for each flag we could add
--- two columns 'flag' and 'relays' to add more flags more easily.
 CREATE TABLE network_size (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     avg_running INTEGER NOT NULL,
@@ -117,8 +115,6 @@ CREATE TABLE relay_platforms (
 );
 
 -- TABLE relay_versions
--- TODO It might be more flexible to use columns 'date', 'versions', and
--- 'relays'.
 CREATE TABLE relay_versions (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     version CHARACTER(5) NOT NULL,
