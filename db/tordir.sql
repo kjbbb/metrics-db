@@ -32,6 +32,25 @@ CREATE TABLE extrainfo (
     CONSTRAINT extrainfo_pkey PRIMARY KEY (extrainfo)
 );
 
+-- TABLE bandwidth
+-- Contains bandwidth histories contained in extra-info descriptors.
+-- Every row represents a 15-minute interval and can have read, written,
+-- dirread, and dirwritten set or not. We're making sure that there's only
+-- one interval for each extrainfo. However, it's possible that an
+-- interval is contained in another extra-info descriptor of the same
+-- relay. These duplicates need to be filtered when aggregating bandwidth
+-- histories.
+CREATE TABLE bwhist (
+    fingerprint CHARACTER(40) NOT NULL,
+    extrainfo CHARACTER(40) NOT NULL,
+    intervalend TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    read BIGINT,
+    written BIGINT,
+    dirread BIGINT,
+    dirwritten BIGINT,
+    CONSTRAINT bwhist_pkey PRIMARY KEY (extrainfo, intervalend)
+);
+
 -- TABLE statusentry
 -- Contains all of the consensus entries published by the directories.
 -- Each statusentry references a valid descriptor.
@@ -134,6 +153,19 @@ CREATE TABLE total_bandwidth (
     CONSTRAINT total_bandwidth_pkey PRIMARY KEY(date)
 );
 
+-- TABLE total_bwhist
+-- Contains the total number of read/written and the number of dir bytes
+-- read/written by all relays in the network on a given day. The dir bytes
+-- are an estimate based on the subset of relays that count dir bytes.
+CREATE TABLE total_bwhist (
+    date DATE NOT NULL,
+    read BIGINT,
+    written BIGINT,
+    dirread BIGINT,
+    dirwritten BIGINT,
+    CONSTRAINT total_bwhist_pkey PRIMARY KEY(date)
+);
+
 -- TABLE relay_statuses_per_day
 -- A helper table which is commonly used to update the tables above in the
 -- refresh_* functions.
@@ -226,6 +258,36 @@ CREATE TRIGGER update_desc
 AFTER INSERT OR UPDATE OR DELETE
 ON descriptor
     FOR EACH ROW EXECUTE PROCEDURE update_desc();
+
+-- FUNCTION update_bwhist
+-- This keeps the updates table up to date for the time graphs.
+CREATE OR REPLACE FUNCTION update_bwhist() RETURNS TRIGGER AS $$
+    BEGIN
+    IF (TG_OP='INSERT' OR TG_OP='UPDATE') THEN
+      IF (SELECT COUNT(*) FROM updates
+          WHERE DATE = DATE(NEW.intervalend)) = 0 THEN
+          INSERT INTO updates
+          VALUES (DATE(NEW.intervalend));
+      END IF;
+    END IF;
+    IF (TG_OP='DELETE' OR TG_OP='UPDATE') THEN
+      IF (SELECT COUNT(*) FROM updates
+          WHERE DATE = DATE(OLD.intervalend)) = 0 THEN
+          INSERT INTO updates
+          VALUES (DATE(OLD.intervalend));
+      END IF;
+    END IF;
+    RETURN NULL; -- result is ignored since this is an AFTER trigger
+END;
+$$ LANGUAGE plpgsql;
+
+-- TRIGGER update_desc
+-- This calls the function update_desc() each time a row is inserted,
+-- updated, or deleted from the descriptors table.
+CREATE TRIGGER update_bwhist
+AFTER INSERT OR UPDATE OR DELETE
+ON bwhist
+    FOR EACH ROW EXECUTE PROCEDURE update_bwhist();
 
 -- FUNCTION refresh_relay_statuses_per_day()
 -- Updates helper table which is used to refresh the aggregate tables.
@@ -399,5 +461,42 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
 
     RETURN 1;
     END;
+$$ LANGUAGE plpgsql;
+
+-- FUNCTION refresh_network_size()
+CREATE OR REPLACE FUNCTION refresh_total_bwhist() RETURNS INTEGER AS $$
+  BEGIN
+  DELETE FROM total_bwhist WHERE date IN (SELECT * FROM updates);
+  INSERT INTO total_bwhist (date, read, written, dirread, dirwritten)
+  SELECT date,
+         SUM(read) AS read,
+         SUM(written) AS written,
+         SUM(CASE WHEN dirwritten IS NULL THEN NULL ELSE written END)
+             AS dirwritten,
+         SUM(CASE WHEN dirread IS NULL THEN NULL ELSE read END) AS dirread
+  FROM (
+    SELECT fingerprint,
+           DATE(intervalend) as date,
+           SUM(read) AS read,
+           SUM(written) AS written,
+           SUM(dirread) AS dirread,
+           SUM(dirwritten) AS dirwritten
+    FROM (
+      SELECT DISTINCT fingerprint,
+                      intervalend,
+                      read,
+                      written,
+                      dirread,
+                      dirwritten
+      FROM bwhist
+      WHERE DATE(intervalend) >= (SELECT MIN(date) FROM updates)
+      AND DATE(intervalend) <= (SELECT MAX(date) FROM updates)
+      AND DATE(intervalend) IN (SELECT date FROM updates)
+    ) byinterval
+    GROUP BY fingerprint, DATE(intervalend)
+  ) byrelay
+  GROUP BY date;
+  RETURN 1;
+  END;
 $$ LANGUAGE plpgsql;
 

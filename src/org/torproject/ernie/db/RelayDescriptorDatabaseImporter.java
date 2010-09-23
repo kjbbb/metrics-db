@@ -25,6 +25,7 @@ public final class RelayDescriptorDatabaseImporter {
    */
   private int rdsCount = 0;
   private int resCount = 0;
+  private int rhsCount = 0;
   private int rrsCount = 0;
   private int rcsCount = 0;
   private int rvsCount = 0;
@@ -45,6 +46,12 @@ public final class RelayDescriptorDatabaseImporter {
    * been imported into the database before.
    */
   private PreparedStatement psEs;
+
+  /**
+   * Prepared statement to check whether the bandwidth history of an
+   * extra-info descriptor has been imported into the database before.
+   */
+  private PreparedStatement psHs;
 
   /**
    * Prepared statement to check whether a given server descriptor has
@@ -82,6 +89,12 @@ public final class RelayDescriptorDatabaseImporter {
   private PreparedStatement psE;
 
   /**
+   * Prepared statement to insert the bandwidth history of an extra-info
+   * descriptor into the database.
+   */
+  private PreparedStatement psH;
+
+  /**
    * Prepared statement to insert a network status consensus into the
    * database.
    */
@@ -103,6 +116,8 @@ public final class RelayDescriptorDatabaseImporter {
   private BufferedWriter extrainfoOut;
   private BufferedWriter consensusOut;
   private BufferedWriter voteOut;
+
+  private SimpleDateFormat dateTimeFormat;
 
   /**
    * Initialize database importer by connecting to the database and
@@ -130,6 +145,8 @@ public final class RelayDescriptorDatabaseImporter {
             + "FROM descriptor WHERE descriptor = ?");
         this.psEs = conn.prepareStatement("SELECT COUNT(*) "
             + "FROM extrainfo WHERE extrainfo = ?");
+        this.psHs = conn.prepareStatement("SELECT COUNT(*) "
+            + "FROM bwhist WHERE extrainfo = ?");
         this.psCs = conn.prepareStatement("SELECT COUNT(*) "
             + "FROM consensus WHERE validafter = ?");
         this.psVs = conn.prepareStatement("SELECT COUNT(*) "
@@ -151,6 +168,9 @@ public final class RelayDescriptorDatabaseImporter {
         this.psE = conn.prepareStatement("INSERT INTO extrainfo "
             + "(extrainfo, nickname, fingerprint, published, rawdesc) "
             + "VALUES (?, ?, ?, ?, ?)");
+        this.psH = conn.prepareStatement("INSERT INTO bwhist "
+            + "(fingerprint, extrainfo, intervalend, read, written, "
+            + "dirread, dirwritten) VALUES (?, ?, ?, ?, ?, ?, ?)");
         this.psC = conn.prepareStatement("INSERT INTO consensus "
             + "(validafter, rawdesc) VALUES (?, ?)");
         this.psV = conn.prepareStatement("INSERT INTO vote "
@@ -178,6 +198,9 @@ public final class RelayDescriptorDatabaseImporter {
         this.logger.log(Level.WARNING, "Could not open raw database "
             + "import files.", e);
       }
+
+      this.dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      this.dateTimeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
     }
   }
 
@@ -234,15 +257,12 @@ public final class RelayDescriptorDatabaseImporter {
         }
       }
       if (this.statusentryOut != null) {
-        SimpleDateFormat dateTimeFormat =
-             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        dateTimeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
         this.statusentryOut.write(
-            dateTimeFormat.format(validAfter) + "\t" + nickname
+            this.dateTimeFormat.format(validAfter) + "\t" + nickname
             + "\t" + fingerprint.toLowerCase() + "\t"
             + descriptor.toLowerCase() + "\t"
-            + dateTimeFormat.format(published) + "\t" + address + "\t"
-            + orPort + "\t" + dirPort + "\t"
+            + this.dateTimeFormat.format(published) + "\t" + address
+            + "\t" + orPort + "\t" + dirPort + "\t"
             + (flags.contains("Authority") ? "t" : "f") + "\t"
             + (flags.contains("BadExit") ? "t" : "f") + "\t"
             + (flags.contains("BadDirectory") ? "t" : "f") + "\t"
@@ -312,16 +332,13 @@ public final class RelayDescriptorDatabaseImporter {
         }
       }
       if (this.descriptorOut != null) {
-        SimpleDateFormat dateTimeFormat =
-             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        dateTimeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
         this.descriptorOut.write(descriptor.toLowerCase() + "\t"
             + nickname + "\t" + address + "\t" + orPort + "\t" + dirPort
             + "\t" + relayIdentifier + "\t" + bandwidthAvg + "\t"
             + bandwidthBurst + "\t" + bandwidthObserved + "\t"
             + (platform != null && platform.length() > 0
             ? new String(platform.getBytes(), "US-ASCII") : "\\N") + "\t"
-            + dateTimeFormat.format(published) + "\t"
+            + this.dateTimeFormat.format(published) + "\t"
             + (uptime >= 0 ? uptime : "\\N") + "\t"
             + (extraInfoDigest != null ? extraInfoDigest : "\\N") + "\t");
         this.descriptorOut.write(PGbytea.toPGString(rawDescriptor).
@@ -344,10 +361,10 @@ public final class RelayDescriptorDatabaseImporter {
    */
   public void addExtraInfoDescriptor(String extraInfoDigest,
       String nickname, String fingerprint, long published,
-      byte[] rawDescriptor) {
+      byte[] rawDescriptor, SortedMap<String, String> bandwidthHistory) {
     try {
+      Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
       if (this.psEs != null && this.psE != null) {
-        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         this.psEs.setString(1, extraInfoDigest);
         ResultSet rs = psEs.executeQuery();
         rs.next();
@@ -366,13 +383,81 @@ public final class RelayDescriptorDatabaseImporter {
           }
         }
       }
+      if (this.psHs != null && this.psH != null) {
+        this.psHs.setString(1, extraInfoDigest);
+        ResultSet rs = this.psHs.executeQuery();
+        rs.next();
+        if (rs.getInt(1) == 0) {
+          this.psH.clearParameters();
+          String lastIntervalEnd = null;
+          List<String> bandwidthHistoryValues = new ArrayList<String>();
+          bandwidthHistoryValues.addAll(bandwidthHistory.values());
+          bandwidthHistoryValues.add("EOL");
+          String readBytes = null, writtenBytes = null,
+              dirReadBytes = null, dirWrittenBytes = null;
+          for (String bandwidthHistoryValue : bandwidthHistoryValues) {
+            String[] entryParts = bandwidthHistoryValue.split(",");
+            String intervalEnd = entryParts[0];
+            if ((intervalEnd.equals("EOL") ||
+                !intervalEnd.equals(lastIntervalEnd)) &&
+                lastIntervalEnd != null) {
+              this.psH.setString(1, fingerprint);
+              this.psH.setString(2, extraInfoDigest);
+              try {
+                this.psH.setTimestamp(3, new Timestamp(Long.parseLong(
+                    lastIntervalEnd)), cal);
+                if (readBytes != null) {
+                  this.psH.setLong(4, Long.parseLong(readBytes));
+                } else {
+                  this.psH.setNull(4, Types.BIGINT);
+                }
+                if (writtenBytes != null) {
+                  this.psH.setLong(5, Long.parseLong(writtenBytes));
+                } else {
+                  this.psH.setNull(5, Types.BIGINT);
+                }
+                if (dirReadBytes != null) {
+                  this.psH.setLong(6, Long.parseLong(dirReadBytes));
+                } else {
+                  this.psH.setNull(6, Types.BIGINT);
+                }
+                if (dirWrittenBytes != null) {
+                  this.psH.setLong(7, Long.parseLong(dirWrittenBytes));
+                } else {
+                  this.psH.setNull(7, Types.BIGINT);
+                }
+              } catch (NumberFormatException e) {
+                break;
+              }
+              this.psH.executeUpdate();
+            }
+            if (intervalEnd.equals("EOL")) {
+              break;
+            }
+            lastIntervalEnd = intervalEnd;
+            String type = entryParts[1];
+            String bytes = entryParts[2];
+            if (type.equals("read-history")) {
+              readBytes = bytes;
+            } else if (type.equals("write-history")) {
+              writtenBytes = bytes;
+            } else if (type.equals("dirreq-read-history")) {
+              dirReadBytes = bytes;
+            } else if (type.equals("dirreq-write-history")) {
+              dirWrittenBytes = bytes;
+            }
+          }
+          rhsCount++;
+          if (rhsCount % autoCommitCount == 0)  {
+            this.conn.commit();
+            rhsCount = 0;
+          }
+        }
+      }
       if (this.extrainfoOut != null) {
-        SimpleDateFormat dateTimeFormat =
-             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        dateTimeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
         this.extrainfoOut.write(extraInfoDigest.toLowerCase() + "\t"
             + nickname + "\t" + fingerprint.toLowerCase() + "\t"
-            + dateTimeFormat.format(published) + "\t");
+            + this.dateTimeFormat.format(published) + "\t");
         this.extrainfoOut.write(PGbytea.toPGString(rawDescriptor).
             replaceAll("\\\\\\\\", "\\\\\\\\\\\\\\\\") + "\n");
       }
@@ -409,10 +494,8 @@ public final class RelayDescriptorDatabaseImporter {
         }
       }
       if (this.consensusOut != null) {
-        SimpleDateFormat dateTimeFormat =
-             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        dateTimeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-        this.consensusOut.write(dateTimeFormat.format(validAfter) + "\t");
+        this.consensusOut.write(this.dateTimeFormat.format(validAfter)
+            + "\t");
         this.consensusOut.write(PGbytea.toPGString(rawDescriptor).
             replaceAll("\\\\\\\\", "\\\\\\\\\\\\\\\\") + "\n");
       }
@@ -452,10 +535,7 @@ public final class RelayDescriptorDatabaseImporter {
         }
       }
       if (this.voteOut != null) {
-        SimpleDateFormat dateTimeFormat =
-             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        dateTimeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-        this.voteOut.write(dateTimeFormat.format(validAfter) + "\t"
+        this.voteOut.write(this.dateTimeFormat.format(validAfter) + "\t"
             + dirSource + "\t");
         this.voteOut.write(PGbytea.toPGString(rawDescriptor).
             replaceAll("\\\\\\\\", "\\\\\\\\\\\\\\\\") + "\n");

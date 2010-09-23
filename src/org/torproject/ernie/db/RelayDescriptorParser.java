@@ -76,6 +76,8 @@ public class RelayDescriptorParser {
    */
   private Logger logger;
 
+  private SimpleDateFormat dateTimeFormat;
+
   /**
    * Initializes this class.
    */
@@ -96,6 +98,9 @@ public class RelayDescriptorParser {
 
     /* Initialize logger. */
     this.logger = Logger.getLogger(RelayDescriptorParser.class.getName());
+
+    this.dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    this.dateTimeFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
   }
 
   public void setRelayDescriptorDownloader(
@@ -351,18 +356,38 @@ public class RelayDescriptorParser {
         long published = -1L;
         String dir = line.split(" ")[2];
         String date = null, v3Reqs = null;
+        SortedMap<String, String> bandwidthHistory =
+            new TreeMap<String, String>();
         boolean skip = false;
         while ((line = br.readLine()) != null) {
           if (line.startsWith("published ")) {
             publishedTime = line.substring("published ".length());
             published = parseFormat.parse(publishedTime).getTime();
+          } else if (line.startsWith("read-history ") ||
+              line.startsWith("write-history ") ||
+              line.startsWith("dirreq-read-history ") ||
+              line.startsWith("dirreq-write-history ")) {
+            String[] parts = line.split(" ");
+            if (parts.length == 6) {
+              String type = parts[0];
+              long intervalEnd = dateTimeFormat.parse(parts[1] + " "
+                  + parts[2]).getTime();
+              try {
+                long intervalLength = Long.parseLong(parts[3].
+                    substring(1));
+                String[] values = parts[5].split(",");
+                for (int i = values.length - 1; i >= 0; i--) {
+                  Long.parseLong(values[i]);
+                  bandwidthHistory.put(intervalEnd + "," + type,
+                      intervalEnd + "," + type + "," + values[i]);
+                  intervalEnd -= intervalLength * 1000L;
+                }
+              } catch (NumberFormatException e) {
+                break;
+              }
+            }
           } else if (line.startsWith("dirreq-stats-end ")) {
             date = line.split(" ")[1];
-            // trusted had very strange dirreq-v3-shares here...
-            // TODO don't check that here, but in DirreqStatsFileHandler
-            skip = dir.equals("8522EB98C91496E80EC238E732594D1509158E77")
-                && (date.equals("2009-09-10") ||
-                    date.equals("2009-09-11"));
           } else if (line.startsWith("dirreq-v3-reqs ")
               && line.length() > "dirreq-v3-reqs ".length()) {
             v3Reqs = line.split(" ")[1];
@@ -410,7 +435,7 @@ public class RelayDescriptorParser {
         }
         if (this.rddi != null && digest != null) {
           this.rddi.addExtraInfoDescriptor(digest, nickname,
-              dir.toLowerCase(), published, data);
+              dir.toLowerCase(), published, data, bandwidthHistory);
         }
       }
     } catch (IOException e) {
