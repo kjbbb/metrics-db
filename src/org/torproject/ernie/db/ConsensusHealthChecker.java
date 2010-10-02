@@ -270,7 +270,8 @@ public class ConsensusHealthChecker {
       /* Write consensus parameters. */
       boolean conflictOrInvalid = false;
       Set<String> validParameters = new HashSet<String>(Arrays.asList(
-          "circwindow,CircuitPriorityHalflifeMsec".split(",")));
+          "circwindow,CircuitPriorityHalflifeMsec,refuseunknownexits".
+          split(",")));
       if (voteParams == null) {
         /* Authority doesn't set consensus parameters. */
       } else {
