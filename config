@@ -83,6 +83,11 @@
 ## Write relay descriptors to a database for later evaluation
 #WriteRelayDescriptorDatabase 0
 #
+## Write aggregate statistics (bridges and bridge users per day, directory
+## clients per day, torperf results, packages requested from GetTor, etc.)
+## to database for later evaluation
+#WriteAggregateStatsDatabase 0
+#
 ## JDBC string for relay descriptor database
 #RelayDescriptorDatabaseJDBC jdbc:postgresql://localhost/tordir?user=ernie&password=password
 #

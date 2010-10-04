@@ -3,12 +3,13 @@
 package org.torproject.ernie.db;
 
 import java.io.*;
+import java.sql.*;
 import java.text.*;
 import java.util.*;
 import java.util.logging.*;
 
 public class TorperfProcessor {
-  public TorperfProcessor(String torperfDirectory) {
+  public TorperfProcessor(String torperfDirectory, String connectionURL) {
     Logger logger = Logger.getLogger(TorperfProcessor.class.getName());
     File rawFile = new File("stats/torperf-raw");
     File statsFile = new File("stats/torperf-stats");
@@ -89,8 +90,7 @@ public class TorperfProcessor {
                   && !parts[16].equals("0")
                   && Long.parseLong(parts[19]) > receivedBytes) {
                 long startSec = Long.parseLong(parts[0]);
-                String dateTime = formatter.format(
-                    new Date(startSec * 1000L));
+                String dateTime = formatter.format(startSec * 1000L);
                 long completeMillis = Long.parseLong(parts[16])
                     * 1000L + Long.parseLong(parts[17]) / 1000L
                     - Long.parseLong(parts[0]) * 1000L
@@ -194,6 +194,79 @@ public class TorperfProcessor {
           + " " + lastLine.split(",")[2]);
     }
     logger.info(dumpStats.toString());
+
+    /* Write results to database. */
+    if (connectionURL != null) {
+      try {
+        Map<String, String> insertRows = new HashMap<String, String>();
+        insertRows.putAll(stats);
+        Set<String> updateRows = new HashSet<String>();
+        Connection conn = DriverManager.getConnection(connectionURL);
+        conn.setAutoCommit(false);
+        Statement statement = conn.createStatement();
+        ResultSet rs = statement.executeQuery(
+            "SELECT date, source, q1, md, q3 FROM torperf_stats");
+        while (rs.next()) {
+          String date = rs.getDate(1).toString();
+          String source = rs.getString(2);
+          String key = source + "," + date;
+          if (insertRows.containsKey(key)) {
+            String insertRow = insertRows.remove(key);
+            String[] newStats = insertRow.split(",");
+            long newQ1 = Long.parseLong(newStats[2]);
+            long newMd = Long.parseLong(newStats[3]);
+            long newQ3 = Long.parseLong(newStats[4]);
+            long oldQ1 = rs.getLong(3);
+            long oldMd = rs.getLong(4);
+            long oldQ3 = rs.getLong(5);
+            if (newQ1 != oldQ1 || newMd != oldMd || newQ3 != oldQ3) {
+              updateRows.add(insertRow);
+            }
+          }
+        }
+        PreparedStatement psU = conn.prepareStatement(
+            "UPDATE torperf_stats SET q1 = ?, md = ?, q3 = ? "
+            + "WHERE date = ? AND source = ?");
+        for (String row : updateRows) {
+          String[] newStats = row.split(",");
+          String source = newStats[0];
+          java.sql.Date date = java.sql.Date.valueOf(newStats[1]);
+          long q1 = Long.parseLong(newStats[2]);
+          long md = Long.parseLong(newStats[3]);
+          long q3 = Long.parseLong(newStats[4]);
+          psU.clearParameters();
+          psU.setLong(1, q1);
+          psU.setLong(2, md);
+          psU.setLong(3, q3);
+          psU.setDate(4, date);
+          psU.setString(5, source);
+          psU.executeUpdate();
+        }
+        PreparedStatement psI = conn.prepareStatement(
+            "INSERT INTO torperf_stats (q1, md, q3, date, source) "
+            + "VALUES (?, ?, ?, ?, ?)");
+        for (String row : insertRows.values()) {
+          String[] newStats = row.split(",");
+          String source = newStats[0];
+          java.sql.Date date = java.sql.Date.valueOf(newStats[1]);
+          long q1 = Long.parseLong(newStats[2]);
+          long md = Long.parseLong(newStats[3]);
+          long q3 = Long.parseLong(newStats[4]);
+          psI.clearParameters();
+          psI.setLong(1, q1);
+          psI.setLong(2, md);
+          psI.setLong(3, q3);
+          psI.setDate(4, date);
+          psI.setString(5, source);
+          psI.executeUpdate();
+        }
+        conn.commit();
+        conn.close();
+      } catch (SQLException e) {
+        logger.log(Level.WARNING, "Failed to add torperf stats to "
+            + "database.", e);
+      }
+    }
   }
 }
 

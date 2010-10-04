@@ -3,6 +3,7 @@
 package org.torproject.ernie.db;
 
 import java.io.*;
+import java.sql.*;
 import java.text.*;
 import java.util.*;
 import java.util.logging.*;
@@ -74,12 +75,16 @@ public class BridgeStatsFileHandler {
    */
   private Logger logger;
 
+  /* Database connection string. */
+  private String connectionURL = null;
+
   /**
    * Initializes this class, including reading in intermediate results
    * files <code>stats/bridge-stats-raw</code> and
    * <code>stats/hashed-relay-identities</code>.
    */
-  public BridgeStatsFileHandler(SortedSet<String> countries) {
+  public BridgeStatsFileHandler(SortedSet<String> countries,
+     String connectionURL) {
 
     /* Memorize the set of countries we care about. */
     this.countries = countries;
@@ -96,6 +101,9 @@ public class BridgeStatsFileHandler {
         "stats/hashed-relay-identities");
     this.zeroTwoTwoDescriptorsFile = new File(
         "stats/v022-bridge-descriptors");
+
+    /* Initialize database connection string. */
+    this.connectionURL = connectionURL;
 
     /* Initialize logger. */
     this.logger = Logger.getLogger(
@@ -410,7 +418,7 @@ public class BridgeStatsFileHandler {
         while (currentDateMillis - 24L * 60L * 60L * 1000L
             > lastDateMillis) {
           lastDateMillis += 24L * 60L * 60L * 1000L;
-          bw.append(dateFormat.format(new Date(lastDateMillis)));
+          bw.append(dateFormat.format(lastDateMillis));
           for (int i = 0; i < this.countries.size(); i++) {
             bw.append(",NA");
           }
@@ -435,6 +443,79 @@ public class BridgeStatsFileHandler {
     } catch (ParseException e) {
       this.logger.log(Level.WARNING, "Failed to write "
           + this.bridgeStatsFile.getAbsolutePath() + "!", e);
+    }
+
+    /* Add daily bridge users to database. */
+    if (connectionURL != null) {
+      try {
+        List<String> countryList = new ArrayList<String>();
+        for (String c : this.countries) {
+          countryList.add(c);
+        }
+        Map<String, Double> insertRows = new HashMap<String, Double>(),
+            updateRows = new HashMap<String, Double>();
+        for (Map.Entry<String, double[]> e :
+            bridgeUsersPerDay.entrySet()) {
+          String date = e.getKey();
+          double[] users = e.getValue();
+          for (int i = 0; i < users.length; i++) {
+            String country = countryList.get(i);
+            String key = date + "," + country;
+            insertRows.put(key, users[i]);
+          }
+        }
+        Connection conn = DriverManager.getConnection(connectionURL);
+        conn.setAutoCommit(false);
+        Statement statement = conn.createStatement();
+        ResultSet rs = statement.executeQuery(
+            "SELECT date, country, users FROM bridge_stats");
+        while (rs.next()) {
+          String date = rs.getDate(1).toString();
+          String country = rs.getString(2);
+          String key = date + "," + country;
+          if (insertRows.containsKey(key)) {
+            double insertRow = insertRows.remove(key);
+            double oldUsers = rs.getDouble(3);
+            if (oldUsers != insertRow) {
+              updateRows.put(key, insertRow);
+            }
+          }
+        }
+        rs.close();
+        PreparedStatement psU = conn.prepareStatement(
+            "UPDATE bridge_stats SET users = ? "
+            + "WHERE date = ? AND country = ?");
+        for (Map.Entry<String, Double> e : updateRows.entrySet()) {
+          String[] keyParts = e.getKey().split(",");
+          java.sql.Date date = java.sql.Date.valueOf(keyParts[0]);
+          String country = keyParts[1];
+          double users = e.getValue();
+          psU.clearParameters();
+          psU.setDouble(1, users);
+          psU.setDate(2, date);
+          psU.setString(3, country);
+          psU.executeUpdate();
+        }
+        PreparedStatement psI = conn.prepareStatement(
+            "INSERT INTO bridge_stats (users, date, country) "
+            + "VALUES (?, ?, ?)");
+        for (Map.Entry<String, Double> e : insertRows.entrySet()) {
+          String[] keyParts = e.getKey().split(",");
+          java.sql.Date date = java.sql.Date.valueOf(keyParts[0]);
+          String country = keyParts[1];
+          double users = e.getValue();
+          psI.clearParameters();
+          psI.setDouble(1, users);
+          psI.setDate(2, date);
+          psI.setString(3, country);
+          psI.executeUpdate();
+        }
+        conn.commit();
+        conn.close();
+      } catch (SQLException e) {
+        logger.log(Level.WARNING, "Failed to add daily bridge users to "
+            + "database.", e);
+      }
     }
   }
 }

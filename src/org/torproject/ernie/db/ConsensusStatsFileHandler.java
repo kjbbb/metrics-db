@@ -3,6 +3,7 @@
 package org.torproject.ernie.db;
 
 import java.io.*;
+import java.sql.*;
 import java.text.*;
 import java.util.*;
 import java.util.logging.*;
@@ -88,13 +89,16 @@ public class ConsensusStatsFileHandler {
 
   private int relayResultsAdded = 0, bridgeResultsAdded = 0;
 
+  /* Database connection string. */
+  private String connectionURL = null;
+
  /**
   * Initializes this class, including reading in intermediate results
   * files <code>stats/consensus-stats-raw</code> and
   * <code>stats/bridge-consensus-stats-raw</code> and final results file
   * <code>stats/consensus-stats</code>.
   */
-  public ConsensusStatsFileHandler() {
+  public ConsensusStatsFileHandler(String connectionURL) {
 
     /* Initialize local data structures to hold intermediate and final
      * results. */
@@ -108,6 +112,9 @@ public class ConsensusStatsFileHandler {
     this.bridgeConsensusStatsRawFile = new File(
         "stats/bridge-consensus-stats-raw");
     this.consensusStatsFile = new File("stats/consensus-stats");
+
+    /* Initialize database connection string. */
+    this.connectionURL = connectionURL;
 
     /* Initialize logger. */
     this.logger = Logger.getLogger(
@@ -448,7 +455,7 @@ public class ConsensusStatsFileHandler {
         while (currentDateMillis <= lastDateMillis) {
           /* Write observations about relays, bridges, both, or none of
            * them. */
-          String date = dateFormat.format(new Date(currentDateMillis));
+          String date = dateFormat.format(currentDateMillis);
           if (this.relaysPerDay.containsKey(date)) {
             bw.append(this.relaysPerDay.get(date));
           } else {
@@ -476,6 +483,59 @@ public class ConsensusStatsFileHandler {
       this.logger.fine("Not writing file "
           + this.consensusStatsFile.getAbsolutePath()
           + ", because nothing has changed.");
+    }
+
+    /* Add average number of bridges per day to the database. */
+    if (connectionURL != null) {
+      try {
+        Map<String, String> insertRows = new HashMap<String, String>(),
+            updateRows = new HashMap<String, String>();
+        insertRows.putAll(this.bridgesPerDay);
+        Connection conn = DriverManager.getConnection(connectionURL);
+        conn.setAutoCommit(false);
+        Statement statement = conn.createStatement();
+        ResultSet rs = statement.executeQuery(
+            "SELECT date, avg_running FROM bridge_network_size");
+        while (rs.next()) {
+          String date = rs.getDate(1).toString();
+          if (insertRows.containsKey(date)) {
+            String insertRow = insertRows.remove(date);
+            long newAvgRunning = Long.parseLong(insertRow.substring(1));
+            long oldAvgRunning = rs.getLong(2);
+            if (newAvgRunning != oldAvgRunning) {
+              updateRows.put(date, insertRow);
+            }
+          }
+        }
+        rs.close();
+        PreparedStatement psU = conn.prepareStatement(
+            "UPDATE bridge_network_size SET avg_running = ? "
+            + "WHERE date = ?");
+        for (Map.Entry<String, String> e : updateRows.entrySet()) {
+          java.sql.Date date = java.sql.Date.valueOf(e.getKey());
+          long avgRunning = Long.parseLong(e.getValue().substring(1));
+          psU.clearParameters();
+          psU.setLong(1, avgRunning);
+          psU.setDate(2, date);
+          psU.executeUpdate();
+        }
+        PreparedStatement psI = conn.prepareStatement(
+            "INSERT INTO bridge_network_size (avg_running, date) "
+            + "VALUES (?, ?)");
+        for (Map.Entry<String, String> e : insertRows.entrySet()) {
+          java.sql.Date date = java.sql.Date.valueOf(e.getKey());
+          long avgRunning = Long.parseLong(e.getValue().substring(1));
+          psI.clearParameters();
+          psI.setLong(1, avgRunning);
+          psI.setDate(2, date);
+          psI.executeUpdate();
+        }
+        conn.commit();
+        conn.close();
+      } catch (SQLException e) {
+        logger.log(Level.WARNING, "Failed to add average bridge numbers "
+            + "to database.", e);
+      }
     }
 
     /* Set modification flags to false again. */

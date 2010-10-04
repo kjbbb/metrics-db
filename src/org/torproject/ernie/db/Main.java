@@ -36,11 +36,17 @@ public class Main {
 
     // Prepare stats file handlers (only if we are writing stats)
     ConsensusStatsFileHandler csfh = config.getWriteConsensusStats() ?
-        new ConsensusStatsFileHandler() : null;
+        new ConsensusStatsFileHandler(
+        config.getWriteAggregateStatsDatabase() ?
+        config.getRelayDescriptorDatabaseJDBC() : null) : null;
     BridgeStatsFileHandler bsfh = config.getWriteBridgeStats() ?
-        new BridgeStatsFileHandler(countries) : null;
+        new BridgeStatsFileHandler(countries,
+        config.getWriteAggregateStatsDatabase() ?
+        config.getRelayDescriptorDatabaseJDBC() : null) : null;
     DirreqStatsFileHandler dsfh = config.getWriteDirreqStats() ?
-        new DirreqStatsFileHandler(countries) : null;
+        new DirreqStatsFileHandler(countries,
+        config.getWriteAggregateStatsDatabase() ?
+        config.getRelayDescriptorDatabaseJDBC() : null) : null;
     ServerDescriptorStatsFileHandler sdsfh =
         config.getWriteServerDescriptorStats() ?
         new ServerDescriptorStatsFileHandler(config.getRelayVersions(),
@@ -185,12 +191,16 @@ public class Main {
 
     // Import and process torperf stats
     if (config.getImportWriteTorperfStats()) {
-      new TorperfProcessor(config.getTorperfDirectory());
+      new TorperfProcessor(config.getTorperfDirectory(),
+          config.getWriteAggregateStatsDatabase() ?
+          config.getRelayDescriptorDatabaseJDBC() : null);
     }
 
     // Download and process GetTor stats
     if (config.getDownloadProcessGetTorStats()) {
-      new GetTorProcessor(config.getGetTorStatsUrl());
+      new GetTorProcessor(config.getGetTorStatsUrl(),
+          config.getWriteAggregateStatsDatabase() ?
+          config.getRelayDescriptorDatabaseJDBC() : null);
     }
 
     // Download exit list and store it to disk

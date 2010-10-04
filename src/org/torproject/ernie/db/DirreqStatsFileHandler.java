@@ -3,6 +3,7 @@
 package org.torproject.ernie.db;
 
 import java.io.*;
+import java.sql.*;
 import java.text.*;
 import java.util.*;
 import java.util.logging.*;
@@ -46,11 +47,15 @@ public class DirreqStatsFileHandler {
 
   private int addedResults = 0;
 
+  /* Database connection string. */
+  private String connectionURL = null;
+
   /**
    * Initializes this class, including reading in previous results from
    * <code>stats/dirreq-stats</code>.
    */
-  public DirreqStatsFileHandler(SortedSet<String> countries) {
+  public DirreqStatsFileHandler(SortedSet<String> countries,
+      String connectionURL) {
 
     /* Memorize the set of countries we care about. */
     this.countries = countries;
@@ -61,6 +66,9 @@ public class DirreqStatsFileHandler {
 
     /* Initialize file name for observations file. */
     this.dirreqStatsFile = new File("stats/dirreq-stats");
+
+    /* Initialize database connection string. */
+    this.connectionURL = connectionURL;
 
     /* Initialize logger. */
     this.logger = Logger.getLogger(
@@ -204,7 +212,7 @@ public class DirreqStatsFileHandler {
               > lastDateMillis) {
             lastDateMillis += 24L * 60L * 60L * 1000L;
             bw.append(currentDirectory + ","
-                + dateFormat.format(new Date(lastDateMillis)));
+                + dateFormat.format(lastDateMillis));
             for (int i = 0; i < this.countries.size(); i++) {
               bw.append(",NA");
             }
@@ -229,6 +237,95 @@ public class DirreqStatsFileHandler {
       this.logger.fine("Not writing file "
           + this.dirreqStatsFile.getAbsolutePath() + ", because "
           + "nothing has changed.");
+    }
+
+    /* Add directory requests by country to database. */
+    if (connectionURL != null) {
+      try {
+        List<String> countryList = new ArrayList<String>();
+        for (String c : this.countries) {
+          countryList.add(c);
+        }
+        Map<String, String> insertRows = new HashMap<String, String>(),
+            updateRows = new HashMap<String, String>();
+        for (String dirreq : this.dirreqs.values()) {
+          String[] parts = dirreq.split(",");
+          String directory = parts[0];
+          String date = parts[1];
+          String share = parts[parts.length - 1];
+          for (int i = 2; i < parts.length - 1; i++) {
+            String country = countryList.get(i - 2);
+            String key = directory + "," + date + "," + country;
+            String requests = parts[i];
+            String value = requests + "," + share;
+            insertRows.put(key, value);
+          }
+        }
+        Connection conn = DriverManager.getConnection(connectionURL);
+        conn.setAutoCommit(false);
+        Statement statement = conn.createStatement();
+        ResultSet rs = statement.executeQuery(
+            "SELECT source, date, country, requests, share "
+            + "FROM dirreq_stats");
+        while (rs.next()) {
+          String source = rs.getString(1);
+          String date = rs.getDate(2).toString();
+          String country = rs.getString(3);
+          String key = source + "," + date + "," + country;
+          if (insertRows.containsKey(key)) {
+            String insertRow = insertRows.remove(key);
+            long oldUsers = rs.getLong(4);
+            long newUsers = Long.parseLong(insertRow.split(",")[0]);
+            if (oldUsers != newUsers) {
+              updateRows.put(key, insertRow);
+            }
+          }
+        }
+        rs.close();
+        PreparedStatement psU = conn.prepareStatement(
+            "UPDATE dirreq_stats SET requests = ?, share = ? "
+            + "WHERE source = ? AND date = ? AND country = ?");
+        for (Map.Entry<String, String> e : updateRows.entrySet()) {
+          String[] keyParts = e.getKey().split(",");
+          String[] valueParts = e.getValue().split(",");
+          String source = keyParts[0];
+          java.sql.Date date = java.sql.Date.valueOf(keyParts[1]);
+          String country = keyParts[2];
+          long requests = Long.parseLong(valueParts[0]);
+          double share = Double.parseDouble(valueParts[1]);
+          psU.clearParameters();
+          psU.setLong(1, requests);
+          psU.setDouble(2, share);
+          psU.setString(3, source);
+          psU.setDate(4, date);
+          psU.setString(5, country);
+          psU.executeUpdate();
+        }
+        PreparedStatement psI = conn.prepareStatement(
+            "INSERT INTO dirreq_stats (requests, share, source, date, "
+            + "country) VALUES (?, ?, ?, ?, ?)");
+        for (Map.Entry<String, String> e : insertRows.entrySet()) {
+          String[] keyParts = e.getKey().split(",");
+          String[] valueParts = e.getValue().split(",");
+          String source = keyParts[0];
+          java.sql.Date date = java.sql.Date.valueOf(keyParts[1]);
+          String country = keyParts[2];
+          long requests = Long.parseLong(valueParts[0]);
+          double share = Double.parseDouble(valueParts[1]);
+          psI.clearParameters();
+          psI.setLong(1, requests);
+          psI.setDouble(2, share);
+          psI.setString(3, source);
+          psI.setDate(4, date);
+          psI.setString(5, country);
+          psI.executeUpdate();
+        }
+        conn.commit();
+        conn.close();
+      } catch (SQLException e) {
+        logger.log(Level.WARNING, "Failed to add directory requests by "
+            + "country to database.", e);
+      }
     }
 
     /* Set modification flag to false again. */

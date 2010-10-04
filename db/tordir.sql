@@ -500,3 +500,56 @@ CREATE OR REPLACE FUNCTION refresh_total_bwhist() RETURNS INTEGER AS $$
   END;
 $$ LANGUAGE plpgsql;
 
+-- non-relay statistics
+-- The following tables contain pre-aggregated statistics that are not
+-- based on relay descriptors or that are not yet derived from the relay
+-- descriptors in the database.
+
+-- TABLE bridge_network_size
+-- Contains average number of running bridges.
+CREATE TABLE bridge_network_size (
+    "date" DATE NOT NULL,
+    avg_running INTEGER NOT NULL,
+    CONSTRAINT bridge_network_size_pkey PRIMARY KEY(date)
+);
+
+-- TABLE dirreq_stats
+-- Contains daily users by country.
+CREATE TABLE dirreq_stats (
+    source CHARACTER(40) NOT NULL,
+    "date" DATE NOT NULL,
+    country CHARACTER(2) NOT NULL,
+    requests INTEGER NOT NULL,
+    "share" DOUBLE PRECISION NOT NULL,
+    CONSTRAINT dirreq_stats_pkey PRIMARY KEY (source, "date", country)
+);
+
+-- TABLE bridge_stats
+-- Contains daily bridge users by country.
+CREATE TABLE bridge_stats (
+    "date" DATE NOT NULL,
+    country CHARACTER(2) NOT NULL,
+    users INTEGER NOT NULL,
+    CONSTRAINT bridge_stats_pkey PRIMARY KEY ("date", country)
+);
+
+-- TABLE torperf_stats
+-- Quantiles and medians of daily torperf results.
+CREATE TABLE torperf_stats (
+    "date" DATE NOT NULL,
+    source CHARACTER VARYING(32) NOT NULL,
+    q1 INTEGER NOT NULL,
+    md INTEGER NOT NULL,
+    q3 INTEGER NOT NULL,
+    CONSTRAINT torperf_stats_pkey PRIMARY KEY("date", source)
+);
+
+-- TABLE gettor_stats
+-- Packages requested from GetTor
+CREATE TABLE gettor_stats (
+    "date" DATE NOT NULL,
+    bundle CHARACTER VARYING(32) NOT NULL,
+    downloads INTEGER NOT NULL,
+    CONSTRAINT gettor_stats_pkey PRIMARY KEY("date", bundle)
+);
+
