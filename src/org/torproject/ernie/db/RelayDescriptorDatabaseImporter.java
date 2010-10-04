@@ -114,6 +114,7 @@ public final class RelayDescriptorDatabaseImporter {
   private BufferedWriter statusentryOut;
   private BufferedWriter descriptorOut;
   private BufferedWriter extrainfoOut;
+  private BufferedWriter bwhistOut;
   private BufferedWriter consensusOut;
   private BufferedWriter voteOut;
 
@@ -190,6 +191,8 @@ public final class RelayDescriptorDatabaseImporter {
             rawFilesDirectory + "/descriptor.sql"));
         this.extrainfoOut = new BufferedWriter(new FileWriter(
             rawFilesDirectory + "/extrainfo.sql"));
+        this.bwhistOut = new BufferedWriter(new FileWriter(
+            rawFilesDirectory + "/bwhist.sql"));
         this.consensusOut = new BufferedWriter(new FileWriter(
             rawFilesDirectory + "/consensus.sql"));
         this.voteOut = new BufferedWriter(new FileWriter(
@@ -383,12 +386,18 @@ public final class RelayDescriptorDatabaseImporter {
           }
         }
       }
-      if (this.psHs != null && this.psH != null) {
-        this.psHs.setString(1, extraInfoDigest);
-        ResultSet rs = this.psHs.executeQuery();
-        rs.next();
-        if (rs.getInt(1) == 0) {
-          this.psH.clearParameters();
+      if ((this.psHs != null && this.psH != null) ||
+          this.bwhistOut != null) {
+        boolean addToDatabase = false;
+        if (psHs != null && this.psH != null) {
+          this.psHs.setString(1, extraInfoDigest);
+          ResultSet rs = this.psHs.executeQuery();
+          rs.next();
+          if (rs.getInt(1) == 0) {
+            addToDatabase = true;
+          }
+        }
+        if (addToDatabase || this.bwhistOut != null) {
           String lastIntervalEnd = null;
           List<String> bandwidthHistoryValues = new ArrayList<String>();
           bandwidthHistoryValues.addAll(bandwidthHistory.values());
@@ -401,35 +410,49 @@ public final class RelayDescriptorDatabaseImporter {
             if ((intervalEnd.equals("EOL") ||
                 !intervalEnd.equals(lastIntervalEnd)) &&
                 lastIntervalEnd != null) {
-              this.psH.setString(1, fingerprint);
-              this.psH.setString(2, extraInfoDigest);
-              try {
-                this.psH.setTimestamp(3, new Timestamp(Long.parseLong(
-                    lastIntervalEnd)), cal);
-                if (readBytes != null) {
-                  this.psH.setLong(4, Long.parseLong(readBytes));
-                } else {
-                  this.psH.setNull(4, Types.BIGINT);
+              if (addToDatabase) {
+                this.psH.clearParameters();
+                this.psH.setString(1, fingerprint);
+                this.psH.setString(2, extraInfoDigest);
+                try {
+                  this.psH.setTimestamp(3, new Timestamp(Long.parseLong(
+                      lastIntervalEnd)), cal);
+                  if (readBytes != null) {
+                    this.psH.setLong(4, Long.parseLong(readBytes));
+                  } else {
+                    this.psH.setNull(4, Types.BIGINT);
+                  }
+                  if (writtenBytes != null) {
+                    this.psH.setLong(5, Long.parseLong(writtenBytes));
+                  } else {
+                    this.psH.setNull(5, Types.BIGINT);
+                  }
+                  if (dirReadBytes != null) {
+                    this.psH.setLong(6, Long.parseLong(dirReadBytes));
+                  } else {
+                    this.psH.setNull(6, Types.BIGINT);
+                  }
+                  if (dirWrittenBytes != null) {
+                    this.psH.setLong(7, Long.parseLong(dirWrittenBytes));
+                  } else {
+                    this.psH.setNull(7, Types.BIGINT);
+                  }
+                } catch (NumberFormatException e) {
+                  break;
                 }
-                if (writtenBytes != null) {
-                  this.psH.setLong(5, Long.parseLong(writtenBytes));
-                } else {
-                  this.psH.setNull(5, Types.BIGINT);
-                }
-                if (dirReadBytes != null) {
-                  this.psH.setLong(6, Long.parseLong(dirReadBytes));
-                } else {
-                  this.psH.setNull(6, Types.BIGINT);
-                }
-                if (dirWrittenBytes != null) {
-                  this.psH.setLong(7, Long.parseLong(dirWrittenBytes));
-                } else {
-                  this.psH.setNull(7, Types.BIGINT);
-                }
-              } catch (NumberFormatException e) {
-                break;
+                this.psH.executeUpdate();
               }
-              this.psH.executeUpdate();
+              if (this.bwhistOut != null) {
+               this.bwhistOut.write(fingerprint.toLowerCase() + "\t"
+                   + extraInfoDigest.toLowerCase() + "\t"
+                   + this.dateTimeFormat.format(Long.parseLong(
+                   lastIntervalEnd)) + "\t"
+                   + (readBytes != null ? readBytes : "\\N") + "\t"
+                   + (writtenBytes != null ? writtenBytes : "\\N") + "\t"
+                   + (dirReadBytes != null ? dirReadBytes : "\\N") + "\t"
+                   + (dirWrittenBytes != null ? dirWrittenBytes : "\\N")
+                   + "\n");
+              }
             }
             if (intervalEnd.equals("EOL")) {
               break;
@@ -447,10 +470,12 @@ public final class RelayDescriptorDatabaseImporter {
               dirWrittenBytes = bytes;
             }
           }
-          rhsCount++;
-          if (rhsCount % autoCommitCount == 0)  {
-            this.conn.commit();
-            rhsCount = 0;
+          if (addToDatabase) {
+            rhsCount++;
+            if (rhsCount % autoCommitCount == 0)  {
+              this.conn.commit();
+              rhsCount = 0;
+            }
           }
         }
       }
@@ -578,6 +603,9 @@ public final class RelayDescriptorDatabaseImporter {
       }
       if (this.extrainfoOut != null) {
         this.extrainfoOut.close();
+      }
+      if (this.bwhistOut != null) {
+        this.bwhistOut.close();
       }
       if (this.consensusOut != null) {
         this.consensusOut.close();
