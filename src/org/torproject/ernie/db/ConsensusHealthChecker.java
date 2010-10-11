@@ -252,7 +252,7 @@ public class ConsensusHealthChecker {
         /* Not a versioning authority. */
       } else if (!voteServerVersions.equals(consensusServerVersions)) {
         versionsResults.append("          <tr>\n"
-            + "            <td/>\n"
+            + "            <td></td>\n"
             + "            <td><font color=\"red\">"
               + voteServerVersions + "</font></td>\n"
             + "          </tr>\n");
@@ -260,7 +260,7 @@ public class ConsensusHealthChecker {
             + "versions than the consensus: " + voteServerVersions);
       } else {
         versionsResults.append("          <tr>\n"
-            + "            <td/>\n"
+            + "            <td></td>\n"
             + "            <td>" + voteServerVersions + "</td>\n"
             + "          </tr>\n");
         this.logger.fine(dirSource + " recommends the same server "
@@ -337,7 +337,7 @@ public class ConsensusHealthChecker {
         bandwidthScannersResults.append("          <tr>\n"
             + "            <td>" + dirSource + "</td>\n"
             + "            <td>" + voteContainsBandwidthWeights
-              + " Measured values in w lines<td/>\n"
+              + " Measured values in w lines</td>\n"
             + "          </tr>\n");
       }
     }
@@ -382,12 +382,12 @@ public class ConsensusHealthChecker {
           + "<html>\n"
           + "  <head>\n"
           + "    <title>Tor Metrics Portal: Consensus health</title>\n"
-          + "    <meta http-equiv=Content-Type content=\"text/html; "
-            + "charset=iso-8859-1\">\n"
-          + "    <link href=\"/css/stylesheet-ltr.css\" type=text/css "
-            + "rel=stylesheet>\n"
-          + "    <link href=\"/images/favicon.ico\""
-            + " type=image/x-icon rel=\"shortcut icon\">\n"
+          + "    <meta http-equiv=\"content-type\" content=\"text/html; "
+            + "charset=ISO-8859-1\">\n"
+          + "    <link href=\"/css/stylesheet-ltr.css\" type=\"text/css\" "
+            + "rel=\"stylesheet\">\n"
+          + "    <link href=\"/images/favicon.ico\" "
+            + "type=\"image/x-icon\" rel=\"shortcut icon\">\n"
           + "  </head>\n"
           + "  <body>\n"
           + "    <div class=\"center\">\n"
@@ -403,12 +403,11 @@ public class ConsensusHealthChecker {
           + "            <a href=\"graphs.html\">Graphs</a>\n"
           + "            <a href=\"research.html\">Research</a>\n"
           + "            <a href=\"status.html\">Status</a>\n"
-          + "            <br/>\n"
+          + "            <br>\n"
           + "            <font size=\"2\">\n"
           + "              <a href=\"exonerator.html\">ExoneraTor</a>\n"
           + "              <a href=\"relay-search.html\">Relay Search</a>\n"
           + "              <a class=\"current\">Consensus Health</a>\n"
-          + "              <a href=\"log.html\">Last Log</a>\n"
           + "            </font>\n"
           + "          </td>\n"
           + "          <td class=\"banner-right\"></td>\n"
@@ -416,15 +415,15 @@ public class ConsensusHealthChecker {
           + "      </table>\n"
           + "      <div class=\"main-column\">\n"
           + "        <h2>Tor Metrics Portal: Consensus Health</h2>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <p>This page shows statistics about the current "
             + "consensus and votes to facilitate debugging of the "
             + "directory consensus process.</p>\n");
 
       /* Write valid-after time. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
           + "        <h3>Valid-after time</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <p>Consensus was published ");
       boolean consensusIsStale = false;
       try {
@@ -451,9 +450,9 @@ public class ConsensusHealthChecker {
             + "new consensus and votes and process them.</i></p>\n");
 
       /* Write known flags. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
           + "        <h3>Known flags</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <table border=\"0\" cellpadding=\"4\" "
           + "cellspacing=\"0\" summary=\"\">\n"
           + "          <colgroup>\n"
@@ -461,7 +460,7 @@ public class ConsensusHealthChecker {
           + "            <col width=\"640\">\n"
           + "          </colgroup>\n");
       if (knownFlagsResults.length() < 1) {
-        bw.write("          <tr><td>(No votes.)</td><td/></tr>\n");
+        bw.write("          <tr><td>(No votes.)</td><td></td></tr>\n");
       } else {
         bw.write(knownFlagsResults.toString());
       }
@@ -474,9 +473,9 @@ public class ConsensusHealthChecker {
       bw.write("        </table>\n");
 
       /* Write number of relays voted about. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
           + "        <h3>Number of relays voted about</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <table border=\"0\" cellpadding=\"4\" "
           + "cellspacing=\"0\" summary=\"\">\n"
           + "          <colgroup>\n"
@@ -485,7 +484,7 @@ public class ConsensusHealthChecker {
           + "            <col width=\"320\">\n"
           + "          </colgroup>\n");
       if (numRelaysVotesResults.length() < 1) {
-        bw.write("          <tr><td>(No votes.)</td><td/><td/></tr>\n");
+        bw.write("          <tr><td>(No votes.)</td><td></td><td></td></tr>\n");
       } else {
         bw.write(numRelaysVotesResults.toString());
       }
@@ -500,9 +499,9 @@ public class ConsensusHealthChecker {
       bw.write("        </table>\n");
 
       /* Write consensus methods. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
           + "        <h3>Consensus methods</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <table border=\"0\" cellpadding=\"4\" "
           + "cellspacing=\"0\" summary=\"\">\n"
           + "          <colgroup>\n"
@@ -510,7 +509,7 @@ public class ConsensusHealthChecker {
           + "            <col width=\"640\">\n"
           + "          </colgroup>\n");
       if (consensusMethodsResults.length() < 1) {
-        bw.write("          <tr><td>(No votes.)</td><td/></tr>\n");
+        bw.write("          <tr><td>(No votes.)</td><td></td></tr>\n");
       } else {
         bw.write(consensusMethodsResults.toString());
       }
@@ -523,9 +522,9 @@ public class ConsensusHealthChecker {
       bw.write("        </table>\n");
 
       /* Write recommended versions. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
           + "        <h3>Recommended versions</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <table border=\"0\" cellpadding=\"4\" "
           + "cellspacing=\"0\" summary=\"\">\n"
           + "          <colgroup>\n"
@@ -533,7 +532,7 @@ public class ConsensusHealthChecker {
           + "            <col width=\"640\">\n"
           + "          </colgroup>\n");
       if (versionsResults.length() < 1) {
-        bw.write("          <tr><td>(No votes.)</td><td/></tr>\n");
+        bw.write("          <tr><td>(No votes.)</td><td></td></tr>\n");
       } else {
         bw.write(versionsResults.toString());
       }
@@ -543,16 +542,17 @@ public class ConsensusHealthChecker {
           + "            <td><font color=\"blue\">"
             + consensusClientVersions + "</font></td>\n"
           + "          </tr>\n");
-      bw.write("          <td/>\n"
+      bw.write("          <tr>\n"
+          + "            <td></td>\n"
           + "            <td><font color=\"blue\">"
           + consensusServerVersions + "</font></td>\n"
         + "          </tr>\n");
       bw.write("        </table>\n");
 
       /* Write consensus parameters. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
           + "        <h3>Consensus parameters</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <table border=\"0\" cellpadding=\"4\" "
           + "cellspacing=\"0\" summary=\"\">\n"
           + "          <colgroup>\n"
@@ -560,21 +560,22 @@ public class ConsensusHealthChecker {
           + "            <col width=\"640\">\n"
           + "          </colgroup>\n");
       if (paramsResults.length() < 1) {
-        bw.write("          <tr><td>(No votes.)</td><td/></tr>\n");
+        bw.write("          <tr><td>(No votes.)</td><td></td></tr>\n");
       } else {
         bw.write(paramsResults.toString());
       }
-      bw.write("          <td><font color=\"blue\">consensus</font>"
-          + "</td>\n"
-        + "            <td><font color=\"blue\">"
-          + consensusParams + "</font></td>\n"
-        + "          </tr>\n");
+      bw.write("          <tr>\n"
+          + "            <td><font color=\"blue\">consensus</font>"
+            + "</td>\n"
+          + "            <td><font color=\"blue\">"
+            + consensusParams + "</font></td>\n"
+          + "          </tr>\n");
       bw.write("        </table>\n");
 
       /* Write authority keys. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
           + "        <h3>Authority keys</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <table border=\"0\" cellpadding=\"4\" "
           + "cellspacing=\"0\" summary=\"\">\n"
           + "          <colgroup>\n"
@@ -582,20 +583,20 @@ public class ConsensusHealthChecker {
           + "            <col width=\"640\">\n"
           + "          </colgroup>\n");
       if (authorityKeysResults.length() < 1) {
-        bw.write("          <tr><td>(No votes.)</td><td/></tr>\n");
+        bw.write("          <tr><td>(No votes.)</td><td></td></tr>\n");
       } else {
         bw.write(authorityKeysResults.toString());
       }
       bw.write("        </table>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <p><i>Note that expiration dates of legacy keys are "
             + "not included in votes and therefore not listed here!</i>"
             + "</p>\n");
 
       /* Write bandwidth scanner status. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
            + "        <h3>Bandwidth scanner status</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <table border=\"0\" cellpadding=\"4\" "
           + "cellspacing=\"0\" summary=\"\">\n"
           + "          <colgroup>\n"
@@ -603,16 +604,16 @@ public class ConsensusHealthChecker {
           + "            <col width=\"640\">\n"
           + "          </colgroup>\n");
       if (bandwidthScannersResults.length() < 1) {
-        bw.write("          <tr><td>(No votes.)</td><td/></tr>\n");
+        bw.write("          <tr><td>(No votes.)</td><td></td></tr>\n");
       } else {
         bw.write(bandwidthScannersResults.toString());
       }
       bw.write("        </table>\n");
 
       /* Write (huge) table with all flags. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
           + "        <h3>Relay flags</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <p>The semantics of flags written in the table is "
             + "as follows:</p>\n"
           + "        <ul>\n"
@@ -632,7 +633,7 @@ public class ConsensusHealthChecker {
           + "          <li><b><font color=\"blue\">In "
             + "consensus:</font></b> Flag in consensus</li>\n"
           + "        </ul>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <p>See also the summary below the table.</p>\n"
           + "        <table border=\"0\" cellpadding=\"4\" "
           + "cellspacing=\"0\" summary=\"\">\n"
@@ -648,14 +649,14 @@ public class ConsensusHealthChecker {
       for (Map.Entry<String, SortedSet<String>> e :
           votesAssignedFlags.entrySet()) {
         if (linesWritten++ % 10 == 0) {
-          bw.write("          <tr><td><br/><b>Fingerprint</b></td>"
-              + "<td><br/><b>Nickname</b></td>\n");
+          bw.write("          <tr><td><br><b>Fingerprint</b></td>"
+              + "<td><br><b>Nickname</b></td>\n");
           for (String dir : allKnownVotes) {
             String shortDirName = dir.length() > 6 ?
                 dir.substring(0, 5) + "." : dir;
-            bw.write("<td><br/><b>" + shortDirName + "</b></td>");
+            bw.write("<td><br><b>" + shortDirName + "</b></td>");
           }
-          bw.write("<td><br/><b>consensus</b></td></tr>\n");
+          bw.write("<td><br><b>consensus</b></td></tr>\n");
         }
         String relayKey = e.getKey();
         SortedSet<String> votes = e.getValue();
@@ -663,7 +664,8 @@ public class ConsensusHealthChecker {
         String nickname = relayKey.split(" ")[1];
         bw.write("          <tr>\n");
         if (consensusAssignedFlags.containsKey(relayKey) &&
-            consensusAssignedFlags.get(relayKey).contains(" Named")) {
+            consensusAssignedFlags.get(relayKey).contains(" Named") &&
+            !Character.isDigit(nickname.charAt(0))) {
           bw.write("            <td id=\"" + nickname
               + "\"><a href=\"relay.html?fingerprint="
               + relayKey.split(" ")[0] + "\" target=\"_blank\">"
@@ -702,7 +704,7 @@ public class ConsensusHealthChecker {
             bw.write("            <td>");
             int flagsWritten = 0;
             for (String flag : relevantFlags) {
-              bw.write(flagsWritten++ > 0 ? "<br/>" : "");
+              bw.write(flagsWritten++ > 0 ? "<br>" : "");
               SortedMap<String, SortedMap<String, Integer>> sums = null;
               if (flags.contains(" " + flag)) {
                 if (consensusFlags == null ||
@@ -734,30 +736,30 @@ public class ConsensusHealthChecker {
             }
             bw.write("</td>\n");
           } else {
-            bw.write("            <td/>\n");
+            bw.write("            <td></td>\n");
           }
         }
         if (consensusFlags != null) {
           bw.write("            <td>");
           int flagsWritten = 0;
           for (String flag : relevantFlags) {
-            bw.write(flagsWritten++ > 0 ? "<br/>" : "");
+            bw.write(flagsWritten++ > 0 ? "<br>" : "");
             if (consensusFlags.contains(" " + flag)) {
               bw.write("<font color=\"blue\">" + flag + "</font>");
             }
           }
           bw.write("</td>\n");
         } else {
-          bw.write("            <td/>\n");
+          bw.write("            <td></td>\n");
         }
         bw.write("          </tr>\n");
       }
       bw.write("        </table>\n");
 
       /* Write summary of overlap between votes and consensus. */
-      bw.write("        <br/>\n"
+      bw.write("        <br>\n"
            + "        <h3>Overlap between votes and consensus</h3>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <p>The semantics of columns is similar to the "
             + "table above:</p>\n"
           + "        <ul>\n"
@@ -775,7 +777,7 @@ public class ConsensusHealthChecker {
             + "in a vote of a directory authority voting on this "
             + "flag</li>\n"
           + "        </ul>\n"
-          + "        <br/>\n"
+          + "        <br>\n"
           + "        <table border=\"0\" cellpadding=\"4\" "
           + "cellspacing=\"0\" summary=\"\">\n"
           + "          <colgroup>\n"
@@ -784,7 +786,7 @@ public class ConsensusHealthChecker {
           + "            <col width=\"210\">\n"
           + "            <col width=\"210\">\n"
           + "          </colgroup>\n");
-      bw.write("          <tr><td/><td><b>Only in vote</b></td>"
+      bw.write("          <tr><td></td><td><b>Only in vote</b></td>"
             + "<td><b>In vote and consensus</b></td>"
             + "<td><b>Only in consensus</b></td>\n");
       for (String dir : allKnownVotes) {
@@ -794,7 +796,7 @@ public class ConsensusHealthChecker {
         for (String flag : flags) {
           bw.write("          <tr>\n");
           if (firstFlagWritten) {
-            bw.write("            <td/>\n");
+            bw.write("            <td></td>\n");
           } else {
             bw.write("            <td>" + dir + "</td>\n");
             firstFlagWritten = true;
@@ -805,14 +807,14 @@ public class ConsensusHealthChecker {
                   + flagsLost.get(dir).get(flag) + " " + flag
                   + "</font></td>\n");
           } else {
-            bw.write("            <td/>\n");
+            bw.write("            <td></td>\n");
           }
           if (flagsAgree.containsKey(dir) &&
               flagsAgree.get(dir).containsKey(flag)) {
             bw.write("            <td>" + flagsAgree.get(dir).get(flag)
                   + " " + flag + "</td>\n");
           } else {
-            bw.write("            <td/>\n");
+            bw.write("            <td></td>\n");
           }
           if (flagsMissing.containsKey(dir) &&
               flagsMissing.get(dir).containsKey(flag)) {
@@ -820,7 +822,7 @@ public class ConsensusHealthChecker {
                   + flagsMissing.get(dir).get(flag) + " " + flag
                   + "</s></font></td>\n");
           } else {
-            bw.write("            <td/>\n");
+            bw.write("            <td></td>\n");
           }
           bw.write("          </tr>\n");
         }
