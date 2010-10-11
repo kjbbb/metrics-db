@@ -122,6 +122,17 @@ CREATE TABLE network_size (
     CONSTRAINT network_size_pkey PRIMARY KEY(date)
 );
 
+-- TABLE network_size_hour
+CREATE TABLE network_size_hour (
+    validafter TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    avg_running INTEGER NOT NULL,
+    avg_exit INTEGER NOT NULL,
+    avg_guard INTEGER NOT NULL,
+    avg_fast INTEGER NOT NULL,
+    avg_stable INTEGER NOT NULL,
+    CONSTRAINT network_size_hour_pkey PRIMARY KEY(validafter)
+);
+
 -- TABLE relay_platforms
 CREATE TABLE relay_platforms (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
@@ -326,7 +337,7 @@ CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
         INSERT INTO network_size
         (date, avg_running, avg_exit, avg_guard, avg_fast, avg_stable)
         SELECT
-              DATE(validafter) as date,
+              DATE(validafter) AS date,
               COUNT(*) / relay_statuses_per_day.count AS avg_running,
               SUM(CASE WHEN isexit IS TRUE THEN 1 ELSE 0 END)
                   / relay_statuses_per_day.count AS avg_exit,
@@ -344,6 +355,31 @@ CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
               AND DATE(validafter) <= (SELECT MAX(date) FROM updates)
               AND DATE(validafter) IN (SELECT date FROM updates)
           GROUP BY DATE(validafter), relay_statuses_per_day.count;
+
+    RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+-- FUNCTION refresh_network_size_hour()
+CREATE OR REPLACE FUNCTION refresh_network_size_hour() RETURNS INTEGER AS $$
+    BEGIN
+
+    DELETE FROM network_size_hour
+    WHERE DATE(validafter) IN (SELECT * FROM updates);
+
+    INSERT INTO network_size_hour
+    (validafter, avg_running, avg_exit, avg_guard, avg_fast, avg_stable)
+    SELECT validafter, COUNT(*) AS avg_running,
+    SUM(CASE WHEN isexit IS TRUE THEN 1 ELSE 0 END) AS avg_exit,
+    SUM(CASE WHEN isguard IS TRUE THEN 1 ELSE 0 END) AS avg_guard,
+    SUM(CASE WHEN isfast IS TRUE THEN 1 ELSE 0 END) AS avg_fast,
+    SUM(CASE WHEN isstable IS TRUE THEN 1 ELSE 0 END) AS avg_stable
+    FROM statusentry
+    WHERE isrunning = TRUE
+    AND DATE(validafter) >= (SELECT MIN(date) FROM updates)
+    AND DATE(validafter) <= (SELECT MAX(date) FROM updates)
+    AND DATE(validafter) IN (SELECT date FROM updates)
+    GROUP BY validafter;
 
     RETURN 1;
     END;
@@ -476,7 +512,7 @@ CREATE OR REPLACE FUNCTION refresh_total_bwhist() RETURNS INTEGER AS $$
          SUM(CASE WHEN dirread IS NULL THEN NULL ELSE read END) AS dirread
   FROM (
     SELECT fingerprint,
-           DATE(intervalend) as date,
+           DATE(intervalend) AS date,
            SUM(read) AS read,
            SUM(written) AS written,
            SUM(dirread) AS dirread,

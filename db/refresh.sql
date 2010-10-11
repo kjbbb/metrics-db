@@ -10,6 +10,7 @@ BEGIN;
 
 SELECT * FROM refresh_relay_statuses_per_day();
 SELECT * FROM refresh_network_size();
+SELECT * FROM refresh_network_size_hour();
 SELECT * FROM refresh_relay_platforms();
 SELECT * FROM refresh_relay_versions();
 SELECT * FROM refresh_total_bandwidth();
