@@ -77,6 +77,7 @@ public class ConsensusHealthChecker {
     StringBuilder paramsResults = new StringBuilder();
     StringBuilder authorityKeysResults = new StringBuilder();
     StringBuilder bandwidthScannersResults = new StringBuilder();
+    StringBuilder authorityVersionsResults = new StringBuilder();
     SortedSet<String> allKnownFlags = new TreeSet<String>();
     SortedSet<String> allKnownVotes = new TreeSet<String>();
     SortedMap<String, String> consensusAssignedFlags =
@@ -97,7 +98,7 @@ public class ConsensusHealthChecker {
      * votes. */
     String consensusConsensusMethod = null, consensusKnownFlags = null,
         consensusClientVersions = null, consensusServerVersions = null,
-        consensusParams = null, rLineTemp = null;
+        consensusParams = null, rLineTemp = null, sLineTemp = null;
     int consensusTotalRelays = 0, consensusRunningRelays = 0;
     try {
       BufferedReader br = new BufferedReader(new StringReader(new String(
@@ -117,6 +118,7 @@ public class ConsensusHealthChecker {
         } else if (line.startsWith("r ")) {
           rLineTemp = line;
         } else if (line.startsWith("s ")) {
+          sLineTemp = line;
           consensusTotalRelays++;
           if (line.contains(" Running")) {
             consensusRunningRelays++;
@@ -124,6 +126,12 @@ public class ConsensusHealthChecker {
           consensusAssignedFlags.put(Hex.encodeHexString(
               Base64.decodeBase64(rLineTemp.split(" ")[2] + "=")).
               toUpperCase() + " " + rLineTemp.split(" ")[1], line);
+        } else if (line.startsWith("v ") &&
+            sLineTemp.contains(" Authority")) {
+          authorityVersionsResults.append("          <tr>\n"
+              + "            <td>" + rLineTemp.split(" ")[1] + "</td>\n"
+              + "            <td>" + line.substring(2) + "</td>\n"
+              + "          </tr>\n");
         }
       }
       br.close();
@@ -609,6 +617,28 @@ public class ConsensusHealthChecker {
         bw.write(bandwidthScannersResults.toString());
       }
       bw.write("        </table>\n");
+
+      /* Write authority versions. */
+      bw.write("        <br>\n"
+           + "        <h3>Authority versions</h3>\n"
+          + "        <br>\n");
+      if (authorityVersionsResults.length() < 1) {
+        bw.write("          <p>(No relays with Authority flag found.)"
+              + "</p>\n");
+      } else {
+        bw.write("        <table border=\"0\" cellpadding=\"4\" "
+              + "cellspacing=\"0\" summary=\"\">\n"
+            + "          <colgroup>\n"
+            + "            <col width=\"160\">\n"
+            + "            <col width=\"640\">\n"
+            + "          </colgroup>\n");
+        bw.write(authorityVersionsResults.toString());
+        bw.write("        </table>\n"
+            + "        <br>\n"
+            + "        <p><i>Note that this list of relays with the "
+              + "Authority flag may be different from the list of v3 "
+              + "directory authorities!</i></p>\n");
+      }
 
       /* Write (huge) table with all flags. */
       bw.write("        <br>\n"
