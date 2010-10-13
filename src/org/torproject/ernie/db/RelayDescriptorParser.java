@@ -370,8 +370,17 @@ public class RelayDescriptorParser {
             String[] parts = line.split(" ");
             if (parts.length == 6) {
               String type = parts[0];
-              long intervalEnd = dateTimeFormat.parse(parts[1] + " "
-                  + parts[2]).getTime();
+              String intervalEndTime = parts[1] + " " + parts[2];
+              long intervalEnd = dateTimeFormat.parse(intervalEndTime).
+                  getTime();
+              if (Math.abs(published - intervalEnd) >
+                  7L * 24L * 60L * 60L * 1000L) {
+                this.logger.fine("Extra-info descriptor publication time "
+                    + publishedTime + " and last interval time "
+                    + intervalEndTime + " in " + type + " line differ by "
+                    + "more than 7 days! Not adding this line!");
+                continue;
+              }
               try {
                 long intervalLength = Long.parseLong(parts[3].
                     substring(1));

@@ -499,7 +499,7 @@ CREATE OR REPLACE FUNCTION refresh_total_bandwidth() RETURNS INTEGER AS $$
     END;
 $$ LANGUAGE plpgsql;
 
--- FUNCTION refresh_network_size()
+-- FUNCTION refresh_total_bwhist()
 CREATE OR REPLACE FUNCTION refresh_total_bwhist() RETURNS INTEGER AS $$
   BEGIN
   DELETE FROM total_bwhist WHERE date IN (SELECT * FROM updates);
@@ -507,9 +507,14 @@ CREATE OR REPLACE FUNCTION refresh_total_bwhist() RETURNS INTEGER AS $$
   SELECT date,
          SUM(read) AS read,
          SUM(written) AS written,
-         SUM(CASE WHEN dirwritten IS NULL THEN NULL ELSE written END)
-             AS dirwritten,
-         SUM(CASE WHEN dirread IS NULL THEN NULL ELSE read END) AS dirread
+         SUM(dirread) * (SUM(written) + SUM(read)) / (1
+           + SUM(CASE WHEN dirwritten IS NULL THEN NULL ELSE written END)
+           + SUM(CASE WHEN dirread IS NULL THEN NULL ELSE read END))
+           AS dirread,
+         SUM(dirwritten) * (SUM(written) + SUM(read)) / (1
+           + SUM(CASE WHEN dirwritten IS NULL THEN NULL ELSE written END)
+           + SUM(CASE WHEN dirread IS NULL THEN NULL ELSE read END))
+           AS dirwritten
   FROM (
     SELECT fingerprint,
            DATE(intervalend) AS date,
