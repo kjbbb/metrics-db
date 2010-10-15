@@ -102,10 +102,13 @@ CREATE TABLE vote (
 );
 
 -- Create the various indexes we need for searching relays
-CREATE INDEX statusentry_address ON statusentry (address);
+CREATE INDEX statusentry_validafter_address
+  ON statusentry (validafter, address);
 CREATE INDEX statusentry_descriptor ON statusentry (descriptor);
-CREATE INDEX statusentry_fingerprint ON statusentry (fingerprint);
-CREATE INDEX statusentry_nickname_lower ON statusentry (LOWER(nickname));
+CREATE INDEX statusentry_validafter_fingerprint
+  ON statusentry (validafter, fingerprint);
+CREATE INDEX statusentry_validafter_nickname
+  ON statusentry (validafter, LOWER(nickname));
 CREATE INDEX statusentry_validafter ON statusentry (validafter);
 
 -- And create an index that we use for precalculating statistics
