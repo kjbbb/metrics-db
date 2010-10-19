@@ -23,13 +23,6 @@
   <target name="init">
     <mkdir dir="${classes}"/>
     <mkdir dir="website/csv"/>
-    <mkdir dir="website/graphs/descriptors"/>
-    <mkdir dir="website/graphs/direct-users"/>
-    <mkdir dir="website/graphs/exit"/>
-    <mkdir dir="website/graphs/gettor"/>
-    <mkdir dir="website/graphs/networksize"/>
-    <mkdir dir="website/graphs/new-users"/>
-    <mkdir dir="website/graphs/torperf"/>
   </target>
   <target name="compile" depends="init"> 
     <javac srcdir="${sources}"

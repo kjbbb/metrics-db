@@ -1,6 +1,3 @@
-options(warn = -1)
-suppressPackageStartupMessages(library("ggplot2"))
-
 if (file.exists("stats/gettor-stats")) {
   gettor <- read.csv("stats/gettor-stats", header = TRUE,
       stringsAsFactors = FALSE);
@@ -23,25 +20,5 @@ if (file.exists("stats/gettor-stats")) {
       gettor$tor.im.browser.bundle_zh_cn,
     fa = gettor$tor.browser.bundle_fa + gettor$tor.im.browser.bundle_fa),
     "website/csv/gettor.csv", quote = FALSE, row.names = FALSE)
-
-  plot_packages <- function(filename, title, data) {
-    ggplot(data, aes(x = as.Date(date, "%Y-%m-%d"), y = packages)) + geom_line() +
-      scale_x_date(name = "\nThe Tor Project - https://metrics.torproject.org/",
-      limits = c(start, end)) +
-      scale_y_continuous(name = "",
-      limits = c(0, max(data$packages, na.rm = TRUE))) +
-      opts(title = paste(title, "\n", sep = ""))
-    ggsave(filename = paste("website/graphs/gettor/", filename, sep = ""),
-      width = 8, height = 5, dpi = 72)
-  }
-
-  plot_packages("gettor-total.png",
-    "Total packages requested from GetTor per day", total)
-  plot_packages("gettor-en.png",
-    "Tor Browser Bundles (en) requested from GetTor per day", en)
-  plot_packages("gettor-zh_cn.png",
-    "Tor Browser Bundles (zh_CN) requested from GetTor per day", zh_cn)
-  plot_packages("gettor-fa.png",
-    "Tor Browser Bundles (fa) requested from GetTor per day", fa)
 }
 
