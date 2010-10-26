@@ -22,14 +22,14 @@
 <!--ERNIE-specific targets -->
   <target name="init">
     <mkdir dir="${classes}"/>
-    <mkdir dir="website/csv"/>
   </target>
   <target name="compile" depends="init"> 
     <javac srcdir="${sources}"
            destdir="${classes}"
            excludes="org/torproject/ernie/web/"
            debug="true" debuglevel="lines,source"
-           classpath="lib/commons-codec-1.4.jar;lib/commons-compress-1.0.jar;lib/postgresql-8.4-701.jdbc4.jar"/>
+           classpath="lib/commons-codec-1.4.jar;lib/commons-compress-1.0.jar;lib/postgresql-8.4-701.jdbc4.jar"
+           includeantruntime="false"/>
   </target>
   <target name="run" depends="compile">
     <java classpath="${classes};lib/commons-codec-1.4.jar:lib/commons-compress-1.0.jar;lib/postgresql-8.4-701.jdbc4.jar"
