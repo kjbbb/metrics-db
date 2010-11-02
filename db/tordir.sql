@@ -101,6 +101,51 @@ CREATE TABLE vote (
     CONSTRAINT vote_pkey PRIMARY KEY (validafter, dirsource)
 );
 
+-- TABLE relays_seen_day
+-- Stores all of the unique routers appearing in each separate day.
+CREATE TABLE relays_seen_day (
+    day DATE NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL,
+    CONSTRAINT relays_seen_week_pkey PRIMARY KEY(week, fingerprint)
+);
+
+-- TABLE relays_seen_week
+CREATE TABLE relays_seen_week (
+    week DATE NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL,
+    CONSTRAINT relays_seen_week_pkey PRIMARY KEY(week, fingerprint)
+);
+
+-- TABLE relays_seen_month
+CREATE TABLE relays_seen_month (
+    month DATE NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL,
+    CONSTRAINT relays_seen_month_pkey PRIMARY KEY(month, fingerprint)
+);
+
+-- TABLE relay_churn_day
+-- This statistic shows how many routers from one cohort are still running
+-- the next. The ratio is portrayed as a percent.
+CREATE TABLE relay_churn_day (
+    day DATE NOT NULL,
+    ratio FLOAT NOT NULL,
+    CONSTRAINT relay_churn_day_pkey PRIMARY KEY(day)
+);
+
+-- TABLE relay_churn_week
+CREATE TABLE relay_churn_week (
+    week DATE NOT NULL,
+    ratio FLOAT NOT NULL,
+    CONSTRAINT relay_churn_week_pkey PRIMARY KEY(week)
+);
+
+-- TABLE relay_churn_month
+CREATE TABLE relay_churn_month (
+    month DATE NOT NULL,
+    ratio FLOAT NOT NULL
+    CONSTRAINT relay_churn_month_pkey PRIMARY KEY(month)
+);
+
 -- Create the various indexes we need for searching relays
 CREATE INDEX statusentry_validafter_address
   ON statusentry (validafter, address);
@@ -737,6 +782,123 @@ CREATE OR REPLACE FUNCTION refresh_user_stats() RETURNS INTEGER AS $$
   GROUP BY 1, 2, 3;
   RETURN 1;
   END;
+$$ LANGUAGE plpgsql;
+
+-- FUNCTION refresh_relay_churn_*
+-- The churn tables find the percentage of relays from each
+-- week/month/year that appear in the following week/month/year.
+CREATE OR REPLACE FUNCTION refresh_relay_churn_day()
+RETURNS INTEGER AS $$
+    BEGIN
+
+    DELETE FROM relays_seen_day
+    WHERE DATE(day) IN (SELECT * FROM updates);
+
+    INSERT INTO
+    relays_seen_day (fingerprint, day)
+    SELECT DISTINCT fingerprint,
+        DATE_TRUNC('day', validafter) AS day
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor=statusentry.descriptor
+    WHERE DATE_TRUNC('day', validafter) IN
+        (SELECT DATE_TRUNC('day', date) FROM updates)
+        AND DATE_TRUNC('day', validafter) IS NOT NULL
+    GROUP BY 1, 2;
+
+    DELETE FROM relay_churn_day;
+
+    INSERT INTO relay_churn_day
+    (day, ratio)
+    SELECT relays_seen_day.day AS day,
+        (churn.count::FLOAT/COUNT(DISTINCT fingerprint)::FLOAT) AS ratio
+    FROM relays_seen_day
+    JOIN ( SELECT COUNT(DISTINCT now.fingerprint) AS count, now.day
+        FROM relays_seen_day now
+        JOIN relays_seen_day future
+        ON DATE(now.day)=DATE(future.day + interval '1 day')
+        AND now.fingerprint=future.fingerprint
+        GROUP BY 2) AS churn
+    ON relays_seen_day.day=churn.day
+    GROUP BY 1, churn.count;
+
+    RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+-- FUNCTION refresh_relay_churn_week
+CREATE OR REPLACE FUNCTION refresh_relay_churn_week()
+RETURNS INTEGER AS $$
+
+    DELETE FROM relays_seen_week
+    WHERE DATE(week) IN (SELECT * FROM updates);
+
+    INSERT INTO
+    relays_seen_week (fingerprint, week)
+    SELECT DISTINCT fingerprint,
+        DATE_TRUNC('week', validafter) AS week
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor=statusentry.descriptor
+    WHERE DATE_TRUNC('week', validafter) IN
+        (SELECT DATE_TRUNC('week', date) FROM updates)
+        AND DATE_TRUNC('week', validafter) IS NOT NULL
+    GROUP BY 1, 2;
+
+    DELETE FROM relay_churn_week;
+
+    INSERT INTO relay_churn_week
+    (week, ratio)
+    SELECT relays_seen_week.week AS week,
+        (churn.count::FLOAT/COUNT(DISTINCT fingerprint)::FLOAT) AS ratio
+    FROM relays_seen_week
+    JOIN ( SELECT COUNT(DISTINCT now.fingerprint) AS count, now.week
+        FROM relays_seen_week now
+        JOIN relays_seen_week future
+        ON DATE(now.week)=DATE(future.week + interval '1 week')
+        AND now.fingerprint=future.fingerprint
+        GROUP BY 2) AS churn
+    ON relays_seen_week.week=churn.week
+    GROUP BY 1, churn.count;
+
+    DELETE FROM relay_churn_month;
+
+    RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+-- FUNCTION refresh_relay_churn_month
+CREATE OR REPLACE FUNCTION refresh_relay_churn_month()
+RETURNS INTEGER AS $$
+
+    DELETE FROM relays_seen_month
+    WHERE DATE(month) IN (SELECT * FROM updates);
+
+    INSERT INTO
+    relays_seen_month (fingerprint, month)
+    SELECT DISTINCT fingerprint,
+        DATE_TRUNC('month', validafter) AS month
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor=statusentry.descriptor
+    WHERE DATE_TRUNC('month', validafter) IN
+        (SELECT DATE_TRUNC('month', date) FROM updates)
+        AND DATE_TRUNC('month', validafter) IS NOT NULL
+    GROUP BY 1, 2;
+
+    INSERT INTO relay_churn_month
+    (month, ratio)
+    SELECT relays_seen_month.month,
+        (churn.count::float/count(distinct fingerprint)::float) as ratio
+    FROM relays_seen_month
+    JOIN ( SELECT COUNT(DISTINCT now.fingerprint) AS count, now.month
+        FROM relays_seen_month now
+        JOIN relays_seen_month future
+        ON DATE(now.month)=DATE(future.month + interval '1 month')
+        AND now.fingerprint=future.fingerprint
+        GROUP BY 2) AS churn
+    ON relays_seen_month.month=churn.month
+    GROUP BY 1, churn.count;
+
+    RETURN 1;
+    END;
 $$ LANGUAGE plpgsql;
 
 -- non-relay statistics

@@ -15,6 +15,9 @@ SELECT * FROM refresh_relay_platforms();
 SELECT * FROM refresh_relay_versions();
 SELECT * FROM refresh_total_bandwidth();
 SELECT * FROM refresh_total_bwhist();
+SELECT * FROM refresh_relay_churn_day();
+SELECT * FROM refresh_relay_churn_week();
+SELECT * FROM refresh_relay_churn_month();
 
 -- Clear the updates table, since we have just updated everything.
 DELETE FROM updates;
