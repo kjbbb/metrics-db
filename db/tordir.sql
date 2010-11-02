@@ -116,13 +116,6 @@ CREATE TABLE relays_seen_month (
     CONSTRAINT relays_seen_month_pkey PRIMARY KEY(month, fingerprint)
 );
 
--- TABLE relays_seen_year
-CREATE TABLE relays_seen_year (
-    year DATE NOT NULL,
-    fingerprint CHARACTER(40) NOT NULL,
-    CONSTRAINT relays_seen_year_pkey PRIMARY KEY(year, fingerprint)
-);
-
 -- TABLE relay_churn_week
 -- This statistic shows how many routers from one week are still running
 -- the next. The ratio is portrayed as a percent.
@@ -137,13 +130,6 @@ CREATE TABLE relay_churn_month (
     month DATE NOT NULL,
     ratio FLOAT NOT NULL
     CONSTRAINT relay_churn_month_pkey PRIMARY KEY(month)
-);
-
--- TABLE relay_churn_year
-CREATE TABLE relay_churn_year (
-    year DATE NOT NULL,
-    ratio FLOAT NOT NULL
-    CONSTRAINT relay_churn_year_pkey PRIMARY KEY(year)
 );
 
 -- Create the various indexes we need for searching relays
@@ -624,21 +610,8 @@ RETURNS INTEGER AS $$
         AND DATE_TRUNC('month', validafter) IS NOT NULL
     GROUP BY 1, 2;
 
-    DELETE FROM relays_seen_year
-    WHERE DATE(year) IN (SELECT * FROM updates);
-
-    INSERT INTO
-    relays_seen_year (fingerprint, year)
-    SELECT DISTINCT fingerprint,
-        DATE_TRUNC('year', validafter) AS year
-    FROM descriptor LEFT JOIN statusentry
-    ON descriptor.descriptor=statusentry.descriptor
-    WHERE DATE_TRUNC('year', validafter) IN
-        (SELECT DATE_TRUNC('year', date) FROM updates)
-        AND DATE_TRUNC('year', validafter) IS NOT NULL
-    GROUP BY 1, 2;
-
     DELETE FROM relay_churn_week;
+
     INSERT INTO relay_churn_week
     (week, ratio)
     SELECT relays_seen_week.week AS week,
@@ -654,6 +627,7 @@ RETURNS INTEGER AS $$
     GROUP BY 1, churn.count;
 
     DELETE FROM relay_churn_month;
+
     INSERT INTO relay_churn_month
     (month, ratio)
     SELECT relays_seen_month.month,
@@ -666,19 +640,6 @@ RETURNS INTEGER AS $$
         AND now.fingerprint=future.fingerprint
         GROUP BY 2) AS churn
     ON relays_seen_month.month=churn.month
-    GROUP BY 1, churn.count;
-
-    DELETE FROM relay_churn_year;
-    SELECT relays_seen_year.year,
-        (churn.count::FLOAT/COUNT(DISTINCT fingerprint)::FLOAT) AS ratio
-    FROM relays_seen_year
-    JOIN ( SELECT COUNT(DISTINCT now.fingerprint) AS count, now.year
-        FROM relays_seen_year now
-        JOIN relays_seen_year future
-        ON DATE(now.year)=DATE(future.year + interval '1 year')
-        AND now.fingerprint=future.fingerprint
-        GROUP BY 2) AS churn
-    ON relays_seen_year.year=churn.year
     GROUP BY 1, churn.count;
 
     RETURN 1;
