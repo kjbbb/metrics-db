@@ -589,10 +589,10 @@ CREATE OR REPLACE FUNCTION refresh_total_bwhist() RETURNS INTEGER AS $$
   END;
 $$ LANGUAGE plpgsql;
 
--- FUNCTION refresh_churn
+-- FUNCTION refresh_relay_churn_*
 -- The churn tables find the percentage of relays from each
 -- week/month/year that appear in the following week/month/year.
-CREATE OR REPLACE FUNCTION refresh_relay_churn()
+CREATE OR REPLACE FUNCTION refresh_relay_churn_day()
 RETURNS INTEGER AS $$
     BEGIN
 
@@ -608,35 +608,6 @@ RETURNS INTEGER AS $$
     WHERE DATE_TRUNC('day', validafter) IN
         (SELECT DATE_TRUNC('day', date) FROM updates)
         AND DATE_TRUNC('day', validafter) IS NOT NULL
-    GROUP BY 1, 2;
-
-
-    DELETE FROM relays_seen_week
-    WHERE DATE(week) IN (SELECT * FROM updates);
-
-    INSERT INTO
-    relays_seen_week (fingerprint, week)
-    SELECT DISTINCT fingerprint,
-        DATE_TRUNC('week', validafter) AS week
-    FROM descriptor LEFT JOIN statusentry
-    ON descriptor.descriptor=statusentry.descriptor
-    WHERE DATE_TRUNC('week', validafter) IN
-        (SELECT DATE_TRUNC('week', date) FROM updates)
-        AND DATE_TRUNC('week', validafter) IS NOT NULL
-    GROUP BY 1, 2;
-
-    DELETE FROM relays_seen_month
-    WHERE DATE(month) IN (SELECT * FROM updates);
-
-    INSERT INTO
-    relays_seen_month (fingerprint, month)
-    SELECT DISTINCT fingerprint,
-        DATE_TRUNC('month', validafter) AS month
-    FROM descriptor LEFT JOIN statusentry
-    ON descriptor.descriptor=statusentry.descriptor
-    WHERE DATE_TRUNC('month', validafter) IN
-        (SELECT DATE_TRUNC('month', date) FROM updates)
-        AND DATE_TRUNC('month', validafter) IS NOT NULL
     GROUP BY 1, 2;
 
     DELETE FROM relay_churn_day;
@@ -655,6 +626,28 @@ RETURNS INTEGER AS $$
     ON relays_seen_day.day=churn.day
     GROUP BY 1, churn.count;
 
+    RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+-- FUNCTION refresh_relay_churn_week
+CREATE OR REPLACE FUNCTION refresh_relay_churn_week()
+RETURNS INTEGER AS $$
+
+    DELETE FROM relays_seen_week
+    WHERE DATE(week) IN (SELECT * FROM updates);
+
+    INSERT INTO
+    relays_seen_week (fingerprint, week)
+    SELECT DISTINCT fingerprint,
+        DATE_TRUNC('week', validafter) AS week
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor=statusentry.descriptor
+    WHERE DATE_TRUNC('week', validafter) IN
+        (SELECT DATE_TRUNC('week', date) FROM updates)
+        AND DATE_TRUNC('week', validafter) IS NOT NULL
+    GROUP BY 1, 2;
+
     DELETE FROM relay_churn_week;
 
     INSERT INTO relay_churn_week
@@ -672,6 +665,28 @@ RETURNS INTEGER AS $$
     GROUP BY 1, churn.count;
 
     DELETE FROM relay_churn_month;
+
+    RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
+
+-- FUNCTION refresh_relay_churn_month
+CREATE OR REPLACE FUNCTION refresh_relay_churn_month()
+RETURNS INTEGER AS $$
+
+    DELETE FROM relays_seen_month
+    WHERE DATE(month) IN (SELECT * FROM updates);
+
+    INSERT INTO
+    relays_seen_month (fingerprint, month)
+    SELECT DISTINCT fingerprint,
+        DATE_TRUNC('month', validafter) AS month
+    FROM descriptor LEFT JOIN statusentry
+    ON descriptor.descriptor=statusentry.descriptor
+    WHERE DATE_TRUNC('month', validafter) IN
+        (SELECT DATE_TRUNC('month', date) FROM updates)
+        AND DATE_TRUNC('month', validafter) IS NOT NULL
+    GROUP BY 1, 2;
 
     INSERT INTO relay_churn_month
     (month, ratio)
