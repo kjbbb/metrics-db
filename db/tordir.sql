@@ -116,7 +116,7 @@ CREATE INDEX statusentry_validafter_date ON statusentry (DATE(validafter));
 
 -- TABLE network_size
 CREATE TABLE network_size (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    date DATE NOT NULL,
     avg_running INTEGER NOT NULL,
     avg_exit INTEGER NOT NULL,
     avg_guard INTEGER NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE network_size_hour (
 
 -- TABLE relay_platforms
 CREATE TABLE relay_platforms (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    date DATE NOT NULL,
     avg_linux INTEGER NOT NULL,
     avg_darwin INTEGER NOT NULL,
     avg_bsd INTEGER NOT NULL,
@@ -149,7 +149,7 @@ CREATE TABLE relay_platforms (
 
 -- TABLE relay_versions
 CREATE TABLE relay_versions (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    date DATE NOT NULL,
     version CHARACTER(5) NOT NULL,
     relays INTEGER NOT NULL,
     CONSTRAINT relay_versions_pkey PRIMARY KEY(date, version)
@@ -159,7 +159,7 @@ CREATE TABLE relay_versions (
 -- Contains information for the whole network's total bandwidth which is
 -- used in the bandwidth graphs.
 CREATE TABLE total_bandwidth (
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    date DATE NOT NULL,
     bwavg BIGINT NOT NULL,
     bwburst BIGINT NOT NULL,
     bwobserved BIGINT NOT NULL,
