@@ -114,6 +114,39 @@ CREATE INDEX statusentry_validafter ON statusentry (validafter);
 -- And create an index that we use for precalculating statistics
 CREATE INDEX statusentry_validafter_date ON statusentry (DATE(validafter));
 
+-- TABLE torstatus
+-- The table used to generate the tor status pages. It holds the most recent
+-- network status entry.
+CREATE TABLE torstatus (
+    validafter TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    nickname CHARACTER VARYING(19) NOT NULL,
+    fingerprint CHARACTER(40) NOT NULL,
+    descriptor CHARACTER(40) NOT NULL,
+    published TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    address CHARACTER VARYING(15) NOT NULL,
+    orport INTEGER NOT NULL,
+    dirport INTEGER NOT NULL,
+    isauthority BOOLEAN DEFAULT FALSE NOT NULL,
+    isbadexit BOOLEAN DEFAULT FALSE NOT NULL,
+    isbaddirectory BOOLEAN DEFAULT FALSE NOT NULL,
+    isexit BOOLEAN DEFAULT FALSE NOT NULL,
+    isfast BOOLEAN DEFAULT FALSE NOT NULL,
+    isguard BOOLEAN DEFAULT FALSE NOT NULL,
+    ishsdir BOOLEAN DEFAULT FALSE NOT NULL,
+    isnamed BOOLEAN DEFAULT FALSE NOT NULL,
+    isstable BOOLEAN DEFAULT FALSE NOT NULL,
+    isrunning BOOLEAN DEFAULT FALSE NOT NULL,
+    isunnamed BOOLEAN DEFAULT FALSE NOT NULL,
+    isvalid BOOLEAN DEFAULT FALSE NOT NULL,
+    isv2dir BOOLEAN DEFAULT FALSE NOT NULL,
+    isv3dir BOOLEAN DEFAULT FALSE NOT NULL,
+    version CHARACTER VARYING(50),
+    bandwidth BIGINT,
+    ports TEXT,
+    rawdesc BYTEA NOT NULL,
+    CONSTRAINT statusentry_pkey PRIMARY KEY (validafter, fingerprint)
+);
+
 -- TABLE network_size
 CREATE TABLE network_size (
     date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
@@ -329,6 +362,18 @@ $$ LANGUAGE plpgsql;
 -- data is finished being added to the descriptor or statusentry tables.
 -- They find what new data has been entered or updated based on the
 -- updates table.
+
+-- FUNCTION refresh_torstatus()
+CREATE OR REPLACE FUNCTION refresh_torstatus() RETURNS INTEGER AS $$
+    BEGIN
+        DELETE FROM torstatus;
+        SELECT * FROM statusentry
+        INTO torstatus
+        WHERE validafter = (SELECT MAX(validafter)
+            FROM statusentry);
+    RETURN 1;
+    END;
+$$ LANGUAGE plpgsql;
 
 -- FUNCTION refresh_network_size()
 CREATE OR REPLACE FUNCTION refresh_network_size() RETURNS INTEGER AS $$
