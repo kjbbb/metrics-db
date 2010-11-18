@@ -453,6 +453,7 @@ public final class RelayDescriptorDatabaseImporter {
                    + (dirWrittenBytes != null ? dirWrittenBytes : "\\N")
                    + "\n");
               }
+              readBytes = writtenBytes = dirReadBytes = dirWrittenBytes = null;
             }
             if (intervalEnd.equals("EOL")) {
               break;
