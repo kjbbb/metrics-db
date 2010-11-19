@@ -29,22 +29,17 @@ public class Main {
       System.exit(1);
     }
 
-    // Define which stats we are interested in
-    SortedSet<String> countries = config.getDirreqBridgeCountries();
-    countries.add("zy"); // Add country zy for 'all users'
-    SortedSet<String> directories = config.getDirreqDirectories();
-
     // Prepare stats file handlers (only if we are writing stats)
     ConsensusStatsFileHandler csfh = config.getWriteConsensusStats() ?
         new ConsensusStatsFileHandler(
         config.getWriteAggregateStatsDatabase() ?
         config.getRelayDescriptorDatabaseJDBC() : null) : null;
     BridgeStatsFileHandler bsfh = config.getWriteBridgeStats() ?
-        new BridgeStatsFileHandler(countries,
+        new BridgeStatsFileHandler(
         config.getWriteAggregateStatsDatabase() ?
         config.getRelayDescriptorDatabaseJDBC() : null) : null;
     DirreqStatsFileHandler dsfh = config.getWriteDirreqStats() ?
-        new DirreqStatsFileHandler(countries,
+        new DirreqStatsFileHandler(
         config.getWriteAggregateStatsDatabase() ?
         config.getRelayDescriptorDatabaseJDBC() : null) : null;
 
@@ -75,8 +70,8 @@ public class Main {
         config.getWriteRelayDescriptorDatabase() ||
         config.getWriteRelayDescriptorsRawFiles() ||
         config.getWriteConsensusHealth() ?
-        new RelayDescriptorParser(csfh, bsfh, dsfh, aw, rddi, chc,
-            countries, directories) : null;
+        new RelayDescriptorParser(csfh, bsfh, dsfh, aw, rddi, chc)
+            : null;
 
     // Import/download relay descriptors from the various sources
     if (rdp != null) {
@@ -87,14 +82,12 @@ public class Main {
         boolean downloadCurrentConsensus = aw != null || csfh != null ||
             bsfh != null || rddi != null || chc != null;
         boolean downloadCurrentVotes = aw != null || chc != null;
-        boolean downloadAllServerDescriptors = aw != null || rddi != null;
-        boolean downloadAllExtraInfos = aw != null;
-        Set<String> downloadDescriptorsForRelays = bsfh != null ||
-            dsfh != null ? directories : new HashSet<String>();
+        boolean downloadAllServerDescriptors = aw != null ||
+            dsfh != null || rddi != null;
+        boolean downloadAllExtraInfos = aw != null || dsfh != null;
         rdd = new RelayDescriptorDownloader(rdp, dirSources,
             downloadCurrentConsensus, downloadCurrentVotes,
-            downloadAllServerDescriptors, downloadAllExtraInfos,
-            downloadDescriptorsForRelays);
+            downloadAllServerDescriptors, downloadAllExtraInfos);
         rdp.setRelayDescriptorDownloader(rdd);
       }
       if (config.getImportCachedRelayDescriptors()) {
@@ -151,7 +144,7 @@ public class Main {
     // Prepare bridge descriptor parser
     BridgeDescriptorParser bdp = config.getWriteConsensusStats() ||
         config.getWriteBridgeStats() || config.getWriteSanitizedBridges()
-        ? new BridgeDescriptorParser(csfh, bsfh, sbw, countries) : null;
+        ? new BridgeDescriptorParser(csfh, bsfh, sbw) : null;
 
     // Import bridge descriptors
     if (bdp != null && config.getImportSanitizedBridges()) {

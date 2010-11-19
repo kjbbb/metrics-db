@@ -55,17 +55,6 @@ public class RelayDescriptorParser {
   private ConsensusHealthChecker chc;
 
   /**
-   * Countries that we care about for directory request and bridge
-   * statistics.
-   */
-  private SortedSet<String> countries;
-
-  /**
-   * Directories that we care about for directory request statistics.
-   */
-  private SortedSet<String> directories;
-
-  /**
    * Logger for this class.
    */
   private Logger logger;
@@ -78,16 +67,13 @@ public class RelayDescriptorParser {
   public RelayDescriptorParser(ConsensusStatsFileHandler csfh,
       BridgeStatsFileHandler bsfh, DirreqStatsFileHandler dsfh,
       ArchiveWriter aw, RelayDescriptorDatabaseImporter rddi,
-      ConsensusHealthChecker chc, SortedSet<String> countries,
-      SortedSet<String> directories) {
+      ConsensusHealthChecker chc) {
     this.csfh = csfh;
     this.bsfh = bsfh;
     this.dsfh = dsfh;
     this.aw = aw;
     this.rddi = rddi;
     this.chc = chc;
-    this.countries = countries;
-    this.directories = directories;
 
     /* Initialize logger. */
     this.logger = Logger.getLogger(RelayDescriptorParser.class.getName());
@@ -269,9 +255,9 @@ public class RelayDescriptorParser {
           }
         }
       } else if (line.startsWith("router ")) {
-        String platformLine = null, publishedTime = null,
-            bandwidthLine = null, extraInfoDigest = null,
-            relayIdentifier = null;
+        String platformLine = null, publishedLine = null,
+            publishedTime = null, bandwidthLine = null,
+            extraInfoDigest = null, relayIdentifier = null;
         String[] parts = line.split(" ");
         String nickname = parts[1];
         String address = parts[2];
@@ -334,7 +320,7 @@ public class RelayDescriptorParser {
         String publishedTime = null, relayIdentifier = line.split(" ")[2];
         long published = -1L;
         String dir = line.split(" ")[2];
-        String date = null, v3Reqs = null;
+        String date = null;
         SortedMap<String, String> bandwidthHistory =
             new TreeMap<String, String>();
         boolean skip = false;
@@ -378,28 +364,19 @@ public class RelayDescriptorParser {
             date = line.split(" ")[1];
           } else if (line.startsWith("dirreq-v3-reqs ")
               && line.length() > "dirreq-v3-reqs ".length()) {
-            v3Reqs = line.split(" ")[1];
-          } else if (line.startsWith("dirreq-v3-share ")
-              && v3Reqs != null && !skip) {
             int allUsers = 0;
             Map<String, String> obs = new HashMap<String, String>();
-            String[] parts = v3Reqs.split(",");
+            String[] parts = line.substring("dirreq-v3-reqs ".length()).
+                split(",");
             for (String p : parts) {
-              allUsers += Integer.parseInt(p.substring(3)) - 4;
-              for (String c : this.countries) {
-                if (p.startsWith(c)) {
-                  // TODO in theory, we should substract 4 here, too
-                  obs.put(c, p.substring(3));
-                  break;
-                }
-              }
+              String country = p.substring(0, 2);
+              int users = Integer.parseInt(p.substring(3)) - 4;
+              allUsers += users;
+              obs.put(country, "" + users);
             }
             obs.put("zy", "" + allUsers);
-            String share = line.substring("dirreq-v3-share ".length(),
-                line.length() - 1);
-            if (this.dsfh != null &&
-                directories.contains(relayIdentifier)) {
-              this.dsfh.addObs(dir, date, obs, share);
+            if (this.dsfh != null) {
+              this.dsfh.addObs(dir, date, obs);
             }
           }
         }

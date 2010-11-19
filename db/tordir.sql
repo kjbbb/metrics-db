@@ -564,7 +564,6 @@ CREATE TABLE dirreq_stats (
     "date" DATE NOT NULL,
     country CHARACTER(2) NOT NULL,
     requests INTEGER NOT NULL,
-    "share" DOUBLE PRECISION NOT NULL,
     CONSTRAINT dirreq_stats_pkey PRIMARY KEY (source, "date", country)
 );
 

@@ -15,12 +15,6 @@ import java.util.logging.*;
 public class Configuration {
   private boolean writeConsensusStats = false;
   private boolean writeDirreqStats = false;
-  private SortedSet<String> dirreqBridgeCountries = new TreeSet<String>(
-      Arrays.asList(("au,bh,br,ca,cn,cu,de,et,fr,gb,ir,it,jp,kr,mm,pl,ru,"
-          + "sa,se,sy,tn,tm,us,uz,vn,ye").split(",")));
-  private SortedSet<String> dirreqDirectories = new TreeSet<String>(
-      Arrays.asList(("8522EB98C91496E80EC238E732594D1509158E77,"
-      + "9695DFC35FFEB861329B9F1AB04C46397020CE31").split(",")));
   private boolean writeBridgeStats = false;
   private boolean writeDirectoryArchives = false;
   private String directoryArchivesOutputDirectory = "directory-archive/";
@@ -87,19 +81,6 @@ public class Configuration {
         } else if (line.startsWith("WriteDirreqStats")) {
           this.writeDirreqStats = Integer.parseInt(
               line.split(" ")[1]) != 0;
-        } else if (line.startsWith("DirreqBridgeCountries")) {
-          this.dirreqBridgeCountries = new TreeSet<String>();
-          for (String country : line.split(" ")[1].split(",")) {
-            if (country.length() != 2) {
-              logger.severe("Configuration file contains illegal country "
-                  + "code in line '" + line + "'! Exiting!");
-              System.exit(1);
-            }
-            this.dirreqBridgeCountries.add(country);
-          }
-        } else if (line.startsWith("DirreqDirectories")) {
-          this.dirreqDirectories = new TreeSet<String>(
-              Arrays.asList(line.split(" ")[1].split(",")));
         } else if (line.startsWith("WriteBridgeStats")) {
           this.writeBridgeStats = Integer.parseInt(
               line.split(" ")[1]) != 0;
@@ -290,12 +271,6 @@ public class Configuration {
   }
   public boolean getWriteDirreqStats() {
     return this.writeDirreqStats;
-  }
-  public SortedSet<String> getDirreqBridgeCountries() {
-    return this.dirreqBridgeCountries;
-  }
-  public SortedSet<String> getDirreqDirectories() {
-    return this.dirreqDirectories;
   }
   public boolean getWriteBridgeStats() {
     return this.writeBridgeStats;

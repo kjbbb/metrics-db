@@ -12,15 +12,12 @@ public class BridgeDescriptorParser {
   private ConsensusStatsFileHandler csfh;
   private BridgeStatsFileHandler bsfh;
   private SanitizedBridgesWriter sbw;
-  private SortedSet<String> countries;
   private Logger logger;
   public BridgeDescriptorParser(ConsensusStatsFileHandler csfh,
-      BridgeStatsFileHandler bsfh, SanitizedBridgesWriter sbw,
-      SortedSet<String> countries) {
+      BridgeStatsFileHandler bsfh, SanitizedBridgesWriter sbw) {
     this.csfh = csfh;
     this.bsfh = bsfh;
     this.sbw = sbw;
-    this.countries = countries;
     this.logger =
         Logger.getLogger(BridgeDescriptorParser.class.getName());
   }
@@ -107,17 +104,13 @@ public class BridgeDescriptorParser {
           Map<String, String> obs = new HashMap<String, String>();
           String[] parts = line.split(" ")[1].split(",");
           for (String p : parts) {
+            String country = p.substring(0, 2);
             double users = ((double) Long.parseLong(p.substring(3)) - 4L)
                     * 86400.0D / ((double) seconds);
             allUsers += users;
-            for (String c : this.countries) {
-              if (p.startsWith(c)) {
-                obs.put(c, String.format("%.2f", users));
-                break;
-              }
-            }
-            obs.put("zy", String.format("%.2f", allUsers));
+            obs.put(country, String.format("%.2f", users));
           }
+          obs.put("zy", String.format("%.2f", allUsers));
           String date = publishedLine.split(" ")[1];
           String time = publishedLine.split(" ")[2];
           if (this.bsfh != null) {
@@ -138,14 +131,12 @@ public class BridgeDescriptorParser {
           Map<String, String> obs = new HashMap<String, String>();
           String[] parts = line.split(" ")[1].split(",");
           for (String p : parts) {
+            String country = p.substring(0, 2);
             double users = (double) Long.parseLong(p.substring(3)) - 4L;
-            for (String c : countries) {
-              if (p.startsWith(c)) {
-                obs.put(c, String.format("%.2f", users));
-                break;
-              }
-            }
+            allUsers += users;
+            obs.put(country, String.format("%.2f", users));
           }
+          obs.put("zy", String.format("%.2f", allUsers));
           String date = bridgeStatsEndLine.split(" ")[1];
           String time = bridgeStatsEndLine.split(" ")[2];
           if (this.bsfh != null) {

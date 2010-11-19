@@ -17,7 +17,7 @@ import java.util.logging.*;
 public class DirreqStatsFileHandler {
 
   /**
-   * Two-letter country codes of countries that we care about.
+   * Two-letter country codes of known countries.
    */
   private SortedSet<String> countries;
 
@@ -28,10 +28,9 @@ public class DirreqStatsFileHandler {
 
   /**
    * Directory requests by directory and date. Map keys are directory and
-   * date written as "directory,date", map values are lines as read from
-   * <code>stats/dirreq-stats</code>.
+   * date written as "directory,date", map values are country-user maps.
    */
-  private SortedMap<String, String> dirreqs;
+  private SortedMap<String, Map<String, String>> dirreqs;
 
   /**
    * Modification flag for directory requests stored in memory. This flag
@@ -54,15 +53,15 @@ public class DirreqStatsFileHandler {
    * Initializes this class, including reading in previous results from
    * <code>stats/dirreq-stats</code>.
    */
-  public DirreqStatsFileHandler(SortedSet<String> countries,
-      String connectionURL) {
+  public DirreqStatsFileHandler(String connectionURL) {
 
-    /* Memorize the set of countries we care about. */
-    this.countries = countries;
+    /* Initialize set of known countries. */
+    this.countries = new TreeSet<String>();
+    this.countries.add("zy");
 
     /* Initialize local data structure to hold observations received from
      * RelayDescriptorParser. */
-    this.dirreqs = new TreeMap<String, String>();
+    this.dirreqs = new TreeMap<String, Map<String, String>>();
 
     /* Initialize file name for observations file. */
     this.dirreqStatsFile = new File("stats/dirreq-stats");
@@ -94,9 +93,7 @@ public class DirreqStatsFileHandler {
           } else {
             String[] headers = line.split(",");
             for (int i = 2; i < headers.length - 1; i++) {
-              if (headers[i].equals("all")) {
-                this.countries.add("zy");
-              } else {
+              if (!headers[i].equals("all")) {
                 this.countries.add(headers[i]);
               }
             }
@@ -113,20 +110,18 @@ public class DirreqStatsFileHandler {
               }
               String directory = parts[0];
               String date = parts[1];
-              /* If the share column contains NA, all the other columns do.
-               * We only want to read in non-NA lines here. */
-              if (!parts[parts.length - 1].equals("NA")) {
-                Map<String, String> obs = new HashMap<String, String>();
-                for (int i = 2; i < parts.length - 1; i++) {
-                  if (headers[i].equals("all")) {
-                    obs.put("zy", parts[i]);
-                  } else {
-                    obs.put(headers[i], parts[i]);
-                  }
+              Map<String, String> obs = new HashMap<String, String>();
+              for (int i = 2; i < parts.length - 1; i++) {
+                if (parts[i].equals("NA")) {
+                  continue;
                 }
-                String share = parts[parts.length - 1];
-                this.addObs(directory, date, obs, share);
+                if (headers[i].equals("all")) {
+                  obs.put("zy", parts[i]);
+                } else {
+                  obs.put(headers[i], parts[i]);
+                }
               }
+              this.addObs(directory, date, obs);
             }
           }
         }
@@ -146,28 +141,24 @@ public class DirreqStatsFileHandler {
 
   /**
    * Adds observations on the number of directory requests by country as
-   * seen on a directory at a given data that expected to see the given
-   * share of all directory requests in the network.
+   * seen on a directory at a given date.
    */
   public void addObs(String directory, String date,
-      Map<String, String> obs, String share) {
-    String key = directory + "," + date;
-    StringBuilder sb = new StringBuilder(key);
-    for (String c : this.countries) {
-      sb.append("," + (obs.containsKey(c) ? obs.get(c) : "0"));
+      Map<String, String> obs) {
+    for (String country : obs.keySet()) {
+      this.countries.add(country);
     }
-    sb.append("," + share);
-    String value = sb.toString();
+    String key = directory + "," + date;
     if (!this.dirreqs.containsKey(key)) {
-      this.logger.finer("Adding new directory request numbers: " + value);
-      this.dirreqs.put(key, value);
+      this.logger.finer("Adding new directory request numbers: " + key);
+      this.dirreqs.put(key, obs);
       this.dirreqsModified = true;
       this.addedResults++;
-    } else if (value.compareTo(this.dirreqs.get(key)) > 0) {
-      this.logger.warning("The directory request numbers we were just "
-          + "given (" + value + ") are different from what we learned "
-          + "before (" + this.dirreqs.get(key) + "! Overwriting!");
-      this.dirreqs.put(key, value);
+    } else {
+      this.logger.fine("The directory request numbers we were just "
+          + "given for " + key + " may be different from what we learned "
+          + "before. Overwriting!");
+      this.dirreqs.put(key, obs);
       this.dirreqsModified = true;
     }
   }
@@ -195,41 +186,23 @@ public class DirreqStatsFileHandler {
             bw.append("," + country);
           }
         }
-        bw.append(",share\n");
-        /* Memorize last written date and directory to fill missing dates
-         * with NA's. */
-        long lastDateMillis = 0L;
-        String lastDirectory = null;
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-        for (String line : this.dirreqs.values()) {
-          /* Fill missing dates with NA's. */
-          String[] parts = line.split(",");
-          String currentDirectory = parts[0];
-          long currentDateMillis = dateFormat.parse(parts[1]).getTime();
-          while (currentDirectory.equals(lastDirectory) &&
-              currentDateMillis - 24L * 60L * 60L * 1000L
-              > lastDateMillis) {
-            lastDateMillis += 24L * 60L * 60L * 1000L;
-            bw.append(currentDirectory + ","
-                + dateFormat.format(lastDateMillis));
-            for (int i = 0; i < this.countries.size(); i++) {
-              bw.append(",NA");
-            }
-            bw.append(",NA\n");
+        bw.append("\n");
+        /* Write observations. */
+        for (Map.Entry<String, Map<String, String>> e :
+            this.dirreqs.entrySet()) {
+          String key = e.getKey();
+          Map<String, String> obs = e.getValue();
+          StringBuilder sb = new StringBuilder(key);
+          for (String c : this.countries) {
+            sb.append("," + (obs.containsKey(c) ? obs.get(c) : "NA"));
           }
-          lastDateMillis = currentDateMillis;
-          lastDirectory = currentDirectory;
-          /* Write current observation. */
+          String line = sb.toString();
           bw.append(line + "\n");
         }
         bw.close();
         this.logger.fine("Finished writing file "
             + this.dirreqStatsFile.getAbsolutePath() + ".");
       } catch (IOException e) {
-        this.logger.log(Level.WARNING, "Failed to write file "
-            + this.dirreqStatsFile.getAbsolutePath() + "!", e);
-      } catch (ParseException e) {
         this.logger.log(Level.WARNING, "Failed to write file "
             + this.dirreqStatsFile.getAbsolutePath() + "!", e);
       }
@@ -248,25 +221,26 @@ public class DirreqStatsFileHandler {
         }
         Map<String, String> insertRows = new HashMap<String, String>(),
             updateRows = new HashMap<String, String>();
-        for (String dirreq : this.dirreqs.values()) {
-          String[] parts = dirreq.split(",");
+        for (Map.Entry<String, Map<String, String>> e :
+            this.dirreqs.entrySet()) {
+          String[] parts = e.getKey().split(",");
           String directory = parts[0];
           String date = parts[1];
-          String share = parts[parts.length - 1];
-          for (int i = 2; i < parts.length - 1; i++) {
-            String country = countryList.get(i - 2);
-            String key = directory + "," + date + "," + country;
-            String requests = parts[i];
-            String value = requests + "," + share;
-            insertRows.put(key, value);
+          Map<String, String> obs = e.getValue();
+          int i = 0;
+          for (String country : this.countries) {
+            if (obs.containsKey(country)) {
+              String key = directory + "," + date + "," + country;
+              String requests = "" + obs.get(country);
+              insertRows.put(key, requests);
+            }
           }
         }
         Connection conn = DriverManager.getConnection(connectionURL);
         conn.setAutoCommit(false);
         Statement statement = conn.createStatement();
         ResultSet rs = statement.executeQuery(
-            "SELECT source, date, country, requests, share "
-            + "FROM dirreq_stats");
+            "SELECT source, date, country, requests FROM dirreq_stats");
         while (rs.next()) {
           String source = rs.getString(1);
           String date = rs.getDate(2).toString();
@@ -283,41 +257,37 @@ public class DirreqStatsFileHandler {
         }
         rs.close();
         PreparedStatement psU = conn.prepareStatement(
-            "UPDATE dirreq_stats SET requests = ?, share = ? "
+            "UPDATE dirreq_stats SET requests = ? "
             + "WHERE source = ? AND date = ? AND country = ?");
         for (Map.Entry<String, String> e : updateRows.entrySet()) {
           String[] keyParts = e.getKey().split(",");
-          String[] valueParts = e.getValue().split(",");
+          String valueParts = e.getValue();
           String source = keyParts[0];
           java.sql.Date date = java.sql.Date.valueOf(keyParts[1]);
           String country = keyParts[2];
-          long requests = Long.parseLong(valueParts[0]);
-          double share = Double.parseDouble(valueParts[1]);
+          long requests = Long.parseLong(valueParts);
           psU.clearParameters();
           psU.setLong(1, requests);
-          psU.setDouble(2, share);
-          psU.setString(3, source);
-          psU.setDate(4, date);
-          psU.setString(5, country);
+          psU.setString(2, source);
+          psU.setDate(3, date);
+          psU.setString(4, country);
           psU.executeUpdate();
         }
         PreparedStatement psI = conn.prepareStatement(
-            "INSERT INTO dirreq_stats (requests, share, source, date, "
-            + "country) VALUES (?, ?, ?, ?, ?)");
+            "INSERT INTO dirreq_stats (requests, source, date, "
+            + "country) VALUES (?, ?, ?, ?)");
         for (Map.Entry<String, String> e : insertRows.entrySet()) {
           String[] keyParts = e.getKey().split(",");
-          String[] valueParts = e.getValue().split(",");
+          String valueParts = e.getValue();
           String source = keyParts[0];
           java.sql.Date date = java.sql.Date.valueOf(keyParts[1]);
           String country = keyParts[2];
-          long requests = Long.parseLong(valueParts[0]);
-          double share = Double.parseDouble(valueParts[1]);
+          long requests = Long.parseLong(valueParts);
           psI.clearParameters();
           psI.setLong(1, requests);
-          psI.setDouble(2, share);
-          psI.setString(3, source);
-          psI.setDate(4, date);
-          psI.setString(5, country);
+          psI.setString(2, source);
+          psI.setDate(3, date);
+          psI.setString(4, country);
           psI.executeUpdate();
         }
         conn.commit();

@@ -115,17 +115,6 @@
 ## Write dirreq stats to disk
 #WriteDirreqStats 0
 #
-## Comma-separated set of countries to be included in dirreq and bridge
-## graphs; note that after adding new countries, an import of the relevant
-## descriptor archives (relay and/or bridge) is necessary!
-#DirreqBridgeCountries au,bh,br,ca,cn,cu,de,et,fr,gb,ir,it,jp,kr,mm,pl,ru,sa,se,sy,tn,tm,us,uz,vn,ye
-#
-## Comma-separated set of fingerprints of directory mirrors to be included
-## in dirreq and bridge graphs; note that after adding new directories, an
-## import of the relevant descriptor archives (relay and/or bridge) is
-## necessary!
-#DirreqDirectories 8522EB98C91496E80EC238E732594D1509158E77,9695DFC35FFEB861329B9F1AB04C46397020CE31
-#
 ## Write bridge stats to disk
 #WriteBridgeStats 0
 

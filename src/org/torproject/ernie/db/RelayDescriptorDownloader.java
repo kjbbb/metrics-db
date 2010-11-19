@@ -75,12 +75,6 @@ public class RelayDescriptorDownloader {
   private boolean downloadAllExtraInfos;
 
   /**
-   * Should we try to download missing server and extra-info descriptors
-   * of certain relays that have been published within the past 24 hours?
-   */
-  private Set<String> downloadDescriptorsForRelays;
-
-  /**
    * valid-after time that we expect the current consensus and votes to
    * have, formatted "yyyy-MM-dd HH:mm:ss". We only expect to find
    * consensuses and votes with this valid-after time on the directories.
@@ -122,8 +116,7 @@ public class RelayDescriptorDownloader {
   public RelayDescriptorDownloader(RelayDescriptorParser rdp,
       List<String> dirSources, boolean downloadCurrentConsensus,
       boolean downloadCurrentVotes, boolean downloadAllServerDescriptors,
-      boolean downloadAllExtraInfos,
-      Set<String> downloadDescriptorsForRelays) {
+      boolean downloadAllExtraInfos) {
 
     /* Memorize argument values. */
     this.rdp = rdp;
@@ -132,7 +125,6 @@ public class RelayDescriptorDownloader {
     this.downloadCurrentVotes = downloadCurrentVotes;
     this.downloadAllServerDescriptors = downloadAllServerDescriptors;
     this.downloadAllExtraInfos = downloadAllExtraInfos;
-    this.downloadDescriptorsForRelays = downloadDescriptorsForRelays;
 
     /* Initialize logger. */
     this.logger = Logger.getLogger(RelayDescriptorParser.class.getName());
@@ -252,21 +244,15 @@ public class RelayDescriptorDownloader {
     }
 
     /* Add server descriptors to missing list. */
-    if (this.downloadAllServerDescriptors ||
-        this.downloadDescriptorsForRelays != null) {
+    if (this.downloadAllServerDescriptors) {
       for (String serverDescriptor : serverDescriptors) {
         String published = serverDescriptor.split(",")[0];
         if (this.descriptorCutOff.compareTo(published) <= 0) {
-          if (this.downloadAllServerDescriptors ||
-              (this.downloadDescriptorsForRelays != null &&
-              this.downloadDescriptorsForRelays.contains(
-              serverDescriptor.split(",")[1].toUpperCase()))) {
-            String serverDescriptorKey = "server," + serverDescriptor;
-            if (!this.missingDescriptors.containsKey(
-                serverDescriptorKey)) {
-              this.missingDescriptors.put(serverDescriptorKey, "NA");
-              this.newMissingServerDescriptors++;
-            }
+          String serverDescriptorKey = "server," + serverDescriptor;
+          if (!this.missingDescriptors.containsKey(
+              serverDescriptorKey)) {
+            this.missingDescriptors.put(serverDescriptorKey, "NA");
+            this.newMissingServerDescriptors++;
           }
         }
       }
@@ -286,20 +272,15 @@ public class RelayDescriptorDownloader {
     }
 
     /* Add server descriptors to missing list. */
-    if (this.downloadAllServerDescriptors ||
-        this.downloadDescriptorsForRelays != null) {
+    if (this.downloadAllServerDescriptors) {
       for (String serverDescriptor : serverDescriptors) {
         String published = serverDescriptor.split(",")[0];
         if (this.descriptorCutOff.compareTo(published) < 0) {
-          if (this.downloadDescriptorsForRelays == null ||
-              this.downloadDescriptorsForRelays.contains(
-              serverDescriptor.split(",")[1].toUpperCase())) {
-            String serverDescriptorKey = "server," + serverDescriptor;
-            if (!this.missingDescriptors.containsKey(
-                serverDescriptorKey)) {
-              this.missingDescriptors.put(serverDescriptorKey, "NA");
-              this.newMissingServerDescriptors++;
-            }
+          String serverDescriptorKey = "server," + serverDescriptor;
+          if (!this.missingDescriptors.containsKey(
+              serverDescriptorKey)) {
+            this.missingDescriptors.put(serverDescriptorKey, "NA");
+            this.newMissingServerDescriptors++;
           }
         }
       }
@@ -323,10 +304,7 @@ public class RelayDescriptorDownloader {
           this.parsedTimestampString);
 
       /* Add extra-info descriptor to missing list. */
-      if (extraInfoDigest != null && (this.downloadAllExtraInfos ||
-          (this.downloadDescriptorsForRelays != null &&
-          this.downloadDescriptorsForRelays.contains(relayIdentity.
-          toUpperCase())))) {
+      if (extraInfoDigest != null && this.downloadAllExtraInfos) {
         String extraInfoKey = "extra," + published + ","
             + relayIdentity + "," + extraInfoDigest;
         if (!this.missingDescriptors.containsKey(extraInfoKey)) {
@@ -404,17 +382,11 @@ public class RelayDescriptorDownloader {
               this.currentValidAfter.equals(parts[1])) {
             urls.add("/tor/status-vote/current/" + parts[2]);
           } else if (parts[0].equals("server") &&
-              (this.downloadAllServerDescriptors ||
-              (this.downloadDescriptorsForRelays != null &&
-              this.downloadDescriptorsForRelays.contains(parts[2].
-              toUpperCase()))) &&
+              this.downloadAllServerDescriptors &&
               this.descriptorCutOff.compareTo(parts[1]) <= 0) {
             urls.add("/tor/server/d/" + parts[3]);
           } else if (parts[0].equals("extra") &&
-              (this.downloadAllExtraInfos ||
-              (this.downloadDescriptorsForRelays != null &&
-              this.downloadDescriptorsForRelays.contains(parts[2].
-              toUpperCase()))) &&
+              this.downloadAllExtraInfos &&
               this.descriptorCutOff.compareTo(parts[1]) <= 0) {
             urls.add("/tor/extra/d/" + parts[3]);
           }

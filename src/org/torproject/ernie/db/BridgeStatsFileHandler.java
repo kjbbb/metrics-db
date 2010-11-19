@@ -19,7 +19,7 @@ import java.util.logging.*;
 public class BridgeStatsFileHandler {
 
   /**
-   * Two-letter country codes of countries that we care about.
+   * Two-letter country codes of known countries.
    */
   private SortedSet<String> countries;
 
@@ -34,7 +34,7 @@ public class BridgeStatsFileHandler {
    * day. Map keys are bridge and date written as "bridge,date", map
    * values are lines as read from <code>stats/bridge-stats-raw</code>.
    */
-  private SortedMap<String, String> bridgeUsersRaw;
+  private SortedMap<String, Map<String, String>> bridgeUsersRaw;
 
   /**
    * Helper file containing the hashed relay identities of all known
@@ -83,14 +83,14 @@ public class BridgeStatsFileHandler {
    * files <code>stats/bridge-stats-raw</code> and
    * <code>stats/hashed-relay-identities</code>.
    */
-  public BridgeStatsFileHandler(SortedSet<String> countries,
-     String connectionURL) {
+  public BridgeStatsFileHandler(String connectionURL) {
 
-    /* Memorize the set of countries we care about. */
-    this.countries = countries;
+    /* Initialize set of known countries. */
+    this.countries = new TreeSet<String>();
+    this.countries.add("zy");
 
     /* Initialize local data structures to hold results. */
-    this.bridgeUsersRaw = new TreeMap<String, String>();
+    this.bridgeUsersRaw = new TreeMap<String, Map<String, String>>();
     this.hashedRelays = new TreeSet<String>();
     this.zeroTwoTwoDescriptors = new TreeSet<String>();
 
@@ -130,9 +130,7 @@ public class BridgeStatsFileHandler {
           } else {
             String[] headers = line.split(",");
             for (int i = 3; i < headers.length; i++) {
-              if (headers[i].equals("all")) {
-                this.countries.add("zy");
-              } else {
+              if (!headers[i].equals("all")) {
                 this.countries.add(headers[i]);
               }
             }
@@ -151,6 +149,9 @@ public class BridgeStatsFileHandler {
               SortedMap<String, String> obs =
                   new TreeMap<String, String>();
               for (int i = 3; i < parts.length; i++) {
+                if (parts[i].equals("NA")) {
+                  continue;
+                }
                 if (headers[i].equals("all")) {
                   obs.put("zy", parts[i]);
                 } else {
@@ -265,25 +266,25 @@ public class BridgeStatsFileHandler {
    */
   public void addObs(String hashedIdentity, String date, String time,
       Map<String, String> obs) {
-    String key = hashedIdentity + "," + date;
-    StringBuilder sb = new StringBuilder(key + "," + time);
-    for (String c : this.countries) {
-      sb.append("," + (obs.containsKey(c) && !obs.get(c).startsWith("-")
-          ? obs.get(c) : "0.0"));
+    for (String country : obs.keySet()) {
+      this.countries.add(country);
     }
-    String value = sb.toString();
-    if (!this.bridgeUsersRaw.containsKey(key)) {
-      this.logger.finer("Adding new bridge user numbers: " + value);
-      this.bridgeUsersRaw.put(key, value);
-    } else if (value.compareTo(this.bridgeUsersRaw.get(key)) > 0) {
+    String shortKey = hashedIdentity + "," + date;
+    String longKey = shortKey + "," + time;
+    SortedMap<String, Map<String, String>> tailMap =
+        this.bridgeUsersRaw.tailMap(shortKey);
+    String nextKey = tailMap.isEmpty() ? null : tailMap.firstKey();
+    if (nextKey == null || !nextKey.startsWith(shortKey)) {
+      this.logger.finer("Adding new bridge user numbers for key "
+          + longKey);
+      this.bridgeUsersRaw.put(longKey, obs);
+    } else if (longKey.compareTo(nextKey) > 0) {
       this.logger.finer("Replacing existing bridge user numbers (" +
-          this.bridgeUsersRaw.get(key) + " with new numbers: "
-          + value);
-      this.bridgeUsersRaw.put(key, value);
+          nextKey + " with new numbers: " + longKey);
+      this.bridgeUsersRaw.put(longKey, obs);
     } else {
       this.logger.finer("Not replacing existing bridge user numbers (" +
-          this.bridgeUsersRaw.get(key) + " with new numbers (" + value
-          + ").");
+          nextKey + " with new numbers (" + longKey + ").");
     }
   }
 
@@ -346,14 +347,22 @@ public class BridgeStatsFileHandler {
         }
       }
       bw.append("\n");
-      for (String line : this.bridgeUsersRaw.values()) {
-        String[] parts = line.split(",");
+      for (Map.Entry<String, Map<String, String>> e :
+          this.bridgeUsersRaw.entrySet()) {
+        String longKey = e.getKey();
+        String[] parts = longKey.split(",");
         String hashedBridgeIdentity = parts[0];
         String date = parts[1];
         String time = parts[2];
         if (!this.hashedRelays.contains(hashedBridgeIdentity) &&
-            !this.zeroTwoTwoDescriptors.contains(hashedBridgeIdentity
-            + "," + date + "," + time)) {
+            !this.zeroTwoTwoDescriptors.contains(longKey)) {
+          Map<String, String> obs = e.getValue();
+          StringBuilder sb = new StringBuilder(longKey);
+          for (String c : this.countries) {
+            sb.append("," + (obs.containsKey(c) &&
+                !obs.get(c).startsWith("-") ? obs.get(c) : "NA"));
+          }
+          String line = sb.toString();
           bw.append(line + "\n");
         }
       }
@@ -368,21 +377,27 @@ public class BridgeStatsFileHandler {
     /* Aggregate per-day statistics. */
     SortedMap<String, double[]> bridgeUsersPerDay =
         new TreeMap<String, double[]>();
-    for (String line : this.bridgeUsersRaw.values()) {
-      String[] parts = line.split(",");
+    for (Map.Entry<String, Map<String, String>> e :
+        this.bridgeUsersRaw.entrySet()) {
+      String longKey = e.getKey();
+      String[] parts = longKey.split(",");
       String hashedBridgeIdentity = parts[0];
       String date = parts[1];
       String time = parts[2];
       if (!this.hashedRelays.contains(hashedBridgeIdentity) &&
-          !this.zeroTwoTwoDescriptors.contains(hashedBridgeIdentity + ","
-          + date + "," + time)) {
+          !this.zeroTwoTwoDescriptors.contains(longKey)) {
         double[] users = bridgeUsersPerDay.get(date);
+        Map<String, String> obs = e.getValue();
         if (users == null) {
           users = new double[this.countries.size()];
           bridgeUsersPerDay.put(date, users);
         }
-        for (int i = 3; i < parts.length; i++) {
-          users[i - 3] += Double.parseDouble(parts[i]);
+        int i = 0;
+        for (String c : this.countries) {
+          if (obs.containsKey(c) && !obs.get(c).startsWith("-")) {
+            users[i] += Double.parseDouble(obs.get(c));
+          }
+          i++;
         }
       }
     }
@@ -405,28 +420,9 @@ public class BridgeStatsFileHandler {
       }
       bw.append("\n");
 
-      /* Memorize last written date fill missing dates with NA's. */
-      long lastDateMillis = 0L;
-      SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-      dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+      /* Write current observation. */
       for (Map.Entry<String, double[]> e : bridgeUsersPerDay.entrySet()) {
         String date = e.getKey();
-        long currentDateMillis = dateFormat.parse(date).getTime();
-        if (lastDateMillis == 0L) {
-          lastDateMillis = currentDateMillis;
-        }
-        while (currentDateMillis - 24L * 60L * 60L * 1000L
-            > lastDateMillis) {
-          lastDateMillis += 24L * 60L * 60L * 1000L;
-          bw.append(dateFormat.format(lastDateMillis));
-          for (int i = 0; i < this.countries.size(); i++) {
-            bw.append(",NA");
-          }
-          bw.append("\n");
-        }
-        lastDateMillis = currentDateMillis;
-
-        /* Write current observation. */
         bw.append(date);
         double[] users = e.getValue();
         for (int i = 0; i < users.length; i++) {
@@ -440,9 +436,6 @@ public class BridgeStatsFileHandler {
     } catch (IOException e) {
       this.logger.log(Level.WARNING, "Failed to write "
           + this.bridgeStatsFile.getAbsolutePath() + "!", e);
-    } catch (ParseException e) {
-      this.logger.log(Level.WARNING, "Failed to write "
-          + this.bridgeStatsFile.getAbsolutePath() + "!", e);
     }
 
     /* Add daily bridge users to database. */
@@ -452,16 +445,20 @@ public class BridgeStatsFileHandler {
         for (String c : this.countries) {
           countryList.add(c);
         }
-        Map<String, Double> insertRows = new HashMap<String, Double>(),
-            updateRows = new HashMap<String, Double>();
+        Map<String, Integer> insertRows = new HashMap<String, Integer>(),
+            updateRows = new HashMap<String, Integer>();
         for (Map.Entry<String, double[]> e :
             bridgeUsersPerDay.entrySet()) {
           String date = e.getKey();
           double[] users = e.getValue();
           for (int i = 0; i < users.length; i++) {
+            int usersInt = (int) users[i];
+            if (usersInt < 1) {
+              continue;
+            }
             String country = countryList.get(i);
             String key = date + "," + country;
-            insertRows.put(key, users[i]);
+            insertRows.put(key, usersInt);
           }
         }
         Connection conn = DriverManager.getConnection(connectionURL);
@@ -474,8 +471,8 @@ public class BridgeStatsFileHandler {
           String country = rs.getString(2);
           String key = date + "," + country;
           if (insertRows.containsKey(key)) {
-            double insertRow = insertRows.remove(key);
-            double oldUsers = rs.getDouble(3);
+            int insertRow = insertRows.remove(key);
+            int oldUsers = rs.getInt(3);
             if (oldUsers != insertRow) {
               updateRows.put(key, insertRow);
             }
@@ -485,13 +482,13 @@ public class BridgeStatsFileHandler {
         PreparedStatement psU = conn.prepareStatement(
             "UPDATE bridge_stats SET users = ? "
             + "WHERE date = ? AND country = ?");
-        for (Map.Entry<String, Double> e : updateRows.entrySet()) {
+        for (Map.Entry<String, Integer> e : updateRows.entrySet()) {
           String[] keyParts = e.getKey().split(",");
           java.sql.Date date = java.sql.Date.valueOf(keyParts[0]);
           String country = keyParts[1];
-          double users = e.getValue();
+          int users = e.getValue();
           psU.clearParameters();
-          psU.setDouble(1, users);
+          psU.setInt(1, users);
           psU.setDate(2, date);
           psU.setString(3, country);
           psU.executeUpdate();
@@ -499,13 +496,13 @@ public class BridgeStatsFileHandler {
         PreparedStatement psI = conn.prepareStatement(
             "INSERT INTO bridge_stats (users, date, country) "
             + "VALUES (?, ?, ?)");
-        for (Map.Entry<String, Double> e : insertRows.entrySet()) {
+        for (Map.Entry<String, Integer> e : insertRows.entrySet()) {
           String[] keyParts = e.getKey().split(",");
           java.sql.Date date = java.sql.Date.valueOf(keyParts[0]);
           String country = keyParts[1];
-          double users = e.getValue();
+          int users = e.getValue();
           psI.clearParameters();
-          psI.setDouble(1, users);
+          psI.setInt(1, users);
           psI.setDate(2, date);
           psI.setString(3, country);
           psI.executeUpdate();
