@@ -35,12 +35,6 @@ public class RelayDescriptorParser {
   private BridgeStatsFileHandler bsfh;
 
   /**
-   * Stats file handler that accepts parse results for server descriptor
-   * statistics.
-   */
-  private ServerDescriptorStatsFileHandler sdsfh;
-
-  /**
    * File writer that writes descriptor contents to files in a
    * directory-archive directory structure.
    */
@@ -83,13 +77,12 @@ public class RelayDescriptorParser {
    */
   public RelayDescriptorParser(ConsensusStatsFileHandler csfh,
       BridgeStatsFileHandler bsfh, DirreqStatsFileHandler dsfh,
-      ServerDescriptorStatsFileHandler sdsfh, ArchiveWriter aw,
-      RelayDescriptorDatabaseImporter rddi, ConsensusHealthChecker chc,
-      SortedSet<String> countries, SortedSet<String> directories) {
+      ArchiveWriter aw, RelayDescriptorDatabaseImporter rddi,
+      ConsensusHealthChecker chc, SortedSet<String> countries,
+      SortedSet<String> directories) {
     this.csfh = csfh;
     this.bsfh = bsfh;
     this.dsfh = dsfh;
-    this.sdsfh = sdsfh;
     this.aw = aw;
     this.rddi = rddi;
     this.chc = chc;
@@ -130,10 +123,9 @@ public class RelayDescriptorParser {
         // consensuses
         boolean isConsensus = true;
         int exit = 0, fast = 0, guard = 0, running = 0, stable = 0;
-        String validAfterTime = null, descriptorIdentity = null,
-            nickname = null, relayIdentity = null, serverDesc = null,
-            version = null, ports = null;
-        StringBuilder descriptorIdentities = new StringBuilder();
+        String validAfterTime = null, nickname = null,
+            relayIdentity = null, serverDesc = null, version = null,
+            ports = null;
         String fingerprint = null, dirSource = null, address = null;
         long validAfter = -1L, published = -1L, bandwidth = -1L,
             orPort = 0L, dirPort = 0L;
@@ -181,7 +173,6 @@ public class RelayDescriptorParser {
             hashedRelayIdentities.add(DigestUtils.shaHex(
                 Base64.decodeBase64(parts[2] + "=")).
                 toUpperCase());
-            descriptorIdentity = parts[3];
             published = parseFormat.parse(parts[4] + " " + parts[5]).
                 getTime();
             address = parts[6];
@@ -195,7 +186,6 @@ public class RelayDescriptorParser {
               guard += line.contains(" Guard") ? 1 : 0;
               stable += line.contains(" Stable") ? 1 : 0;
               running++;
-              descriptorIdentities.append("," + descriptorIdentity);
             }
             relayFlags = new TreeSet<String>();
             if (line.length() > 2) {
@@ -240,10 +230,6 @@ public class RelayDescriptorParser {
             this.csfh.addConsensusResults(validAfterTime, exit, fast,
                 guard, running, stable);
           }
-          if (this.sdsfh != null) {
-            this.sdsfh.addConsensus(validAfterTime,
-                descriptorIdentities.toString().substring(1));
-          }
           if (this.rdd != null) {
             this.rdd.haveParsedConsensus(validAfterTime, dirSources,
                 serverDescriptors);
@@ -283,9 +269,9 @@ public class RelayDescriptorParser {
           }
         }
       } else if (line.startsWith("router ")) {
-        String platformLine = null, publishedLine = null,
-            publishedTime = null, bandwidthLine = null,
-            extraInfoDigest = null, relayIdentifier = null;
+        String platformLine = null, publishedTime = null,
+            bandwidthLine = null, extraInfoDigest = null,
+            relayIdentifier = null;
         String[] parts = line.split(" ");
         String nickname = parts[1];
         String address = parts[2];
@@ -296,7 +282,6 @@ public class RelayDescriptorParser {
           if (line.startsWith("platform ")) {
             platformLine = line;
           } else if (line.startsWith("published ")) {
-            publishedLine = line;
             publishedTime = line.substring("published ".length());
             published = parseFormat.parse(publishedTime).getTime();
           } else if (line.startsWith("opt fingerprint") ||
@@ -320,12 +305,10 @@ public class RelayDescriptorParser {
         String sigToken = "\nrouter-signature\n";
         int start = ascii.indexOf(startToken);
         int sig = ascii.indexOf(sigToken) + sigToken.length();
-        String digest = null, descriptorIdentity = null;
+        String digest = null;
         if (start >= 0 || sig >= 0 || sig > start) {
           byte[] forDigest = new byte[sig - start];
           System.arraycopy(data, start, forDigest, 0, sig - start);
-          descriptorIdentity = Base64.encodeBase64String(
-              DigestUtils.sha(forDigest)).substring(0, 27);
           digest = DigestUtils.shaHex(forDigest);
         }
         if (this.aw != null && digest != null) {
@@ -334,10 +317,6 @@ public class RelayDescriptorParser {
         if (this.rdd != null && digest != null) {
           this.rdd.haveParsedServerDescriptor(publishedTime,
               relayIdentifier, digest, extraInfoDigest);
-        }
-        if (this.sdsfh != null && descriptorIdentity != null) {
-          this.sdsfh.addServerDescriptor(descriptorIdentity, platformLine,
-              publishedLine, bandwidthLine);
         }
         if (this.rddi != null && digest != null) {
           String[] bwParts = bandwidthLine.split(" ");

@@ -22,11 +22,6 @@ public class Configuration {
       Arrays.asList(("8522EB98C91496E80EC238E732594D1509158E77,"
       + "9695DFC35FFEB861329B9F1AB04C46397020CE31").split(",")));
   private boolean writeBridgeStats = false;
-  private boolean writeServerDescriptorStats = false;
-  private List<String> relayVersions = new ArrayList<String>(
-      Arrays.asList("0.1.2,0.2.0,0.2.1,0.2.2".split(",")));
-  private List<String> relayPlatforms = new ArrayList<String>(
-      Arrays.asList("Linux,Windows,Darwin,FreeBSD".split(",")));
   private boolean writeDirectoryArchives = false;
   private String directoryArchivesOutputDirectory = "directory-archive/";
   private boolean importCachedRelayDescriptors = false;
@@ -108,15 +103,6 @@ public class Configuration {
         } else if (line.startsWith("WriteBridgeStats")) {
           this.writeBridgeStats = Integer.parseInt(
               line.split(" ")[1]) != 0;
-        } else if (line.startsWith("WriteServerDescriptorStats")) {
-          this.writeServerDescriptorStats = Integer.parseInt(
-              line.split(" ")[1]) != 0;
-        } else if (line.startsWith("RelayVersions")) {
-          this.relayVersions = new ArrayList<String>(
-              Arrays.asList(line.split(" ")[1].split(",")));
-        } else if (line.startsWith("RelayPlatforms")) {
-          this.relayPlatforms = new ArrayList<String>(
-              Arrays.asList(line.split(" ")[1].split(",")));
         } else if (line.startsWith("WriteDirectoryArchives")) {
           this.writeDirectoryArchives = Integer.parseInt(
               line.split(" ")[1]) != 0;
@@ -251,7 +237,7 @@ public class Configuration {
         !this.writeAggregateStatsDatabase &&
         !this.writeSanitizedBridges && !this.writeConsensusStats &&
         !this.writeDirreqStats && !this.writeBridgeStats &&
-        !this.writeServerDescriptorStats && !this.writeConsensusHealth) {
+        !this.writeConsensusHealth) {
       logger.warning("We have not been configured to read data from any "
           + "data source or write data to any data sink. You need to "
           + "edit your config file (" + configFile.getAbsolutePath()
@@ -264,7 +250,7 @@ public class Configuration {
         this.writeRelayDescriptorDatabase ||
         this.writeRelayDescriptorsRawFiles || this.writeConsensusStats ||
         this.writeDirreqStats || this.writeBridgeStats ||
-        this.writeServerDescriptorStats || this.writeConsensusHealth)) {
+        this.writeConsensusHealth)) {
       logger.warning("We are configured to import/download relay "
           + "descriptors, but we don't have a single data sink to write "
           + "relay descriptors to.");
@@ -272,8 +258,7 @@ public class Configuration {
     if (!(this.importCachedRelayDescriptors ||
         this.importDirectoryArchives || this.downloadRelayDescriptors) &&
         (this.writeDirectoryArchives ||
-        this.writeRelayDescriptorDatabase || this.writeDirreqStats ||
-        this.writeServerDescriptorStats)) {
+        this.writeRelayDescriptorDatabase || this.writeDirreqStats)) {
       logger.warning("We are configured to write relay descriptor to at "
           + "least one data sink, but we don't have a single data source "
           + "containing relay descriptors.");
@@ -314,15 +299,6 @@ public class Configuration {
   }
   public boolean getWriteBridgeStats() {
     return this.writeBridgeStats;
-  }
-  public boolean getWriteServerDescriptorStats() {
-    return this.writeServerDescriptorStats;
-  }
-  public List<String> getRelayVersions() {
-    return this.relayVersions;
-  }
-  public List<String> getRelayPlatforms() {
-    return this.relayPlatforms;
   }
   public boolean getWriteDirectoryArchives() {
     return this.writeDirectoryArchives;

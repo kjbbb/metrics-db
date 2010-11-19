@@ -47,10 +47,6 @@ public class Main {
         new DirreqStatsFileHandler(countries,
         config.getWriteAggregateStatsDatabase() ?
         config.getRelayDescriptorDatabaseJDBC() : null) : null;
-    ServerDescriptorStatsFileHandler sdsfh =
-        config.getWriteServerDescriptorStats() ?
-        new ServerDescriptorStatsFileHandler(config.getRelayVersions(),
-        config.getRelayPlatforms()) : null;
 
     // Prepare consensus health checker
     ConsensusHealthChecker chc = config.getWriteConsensusHealth() ?
@@ -75,12 +71,11 @@ public class Main {
     // directory archives to disk)
     RelayDescriptorParser rdp = config.getWriteConsensusStats() ||
         config.getWriteBridgeStats() || config.getWriteDirreqStats() ||
-        config.getWriteServerDescriptorStats() ||
         config.getWriteDirectoryArchives() ||
         config.getWriteRelayDescriptorDatabase() ||
         config.getWriteRelayDescriptorsRawFiles() ||
         config.getWriteConsensusHealth() ?
-        new RelayDescriptorParser(csfh, bsfh, dsfh, sdsfh, aw, rddi, chc,
+        new RelayDescriptorParser(csfh, bsfh, dsfh, aw, rddi, chc,
             countries, directories) : null;
 
     // Import/download relay descriptors from the various sources
@@ -90,10 +85,9 @@ public class Main {
         List<String> dirSources =
             config.getDownloadFromDirectoryAuthorities();
         boolean downloadCurrentConsensus = aw != null || csfh != null ||
-            bsfh != null || sdsfh != null || rddi != null || chc != null;
+            bsfh != null || rddi != null || chc != null;
         boolean downloadCurrentVotes = aw != null || chc != null;
-        boolean downloadAllServerDescriptors = aw != null ||
-            sdsfh != null || rddi != null;
+        boolean downloadAllServerDescriptors = aw != null || rddi != null;
         boolean downloadAllExtraInfos = aw != null;
         Set<String> downloadDescriptorsForRelays = bsfh != null ||
             dsfh != null ? directories : new HashSet<String>();
@@ -147,10 +141,6 @@ public class Main {
     if (dsfh != null) {
       dsfh.writeFile();
       dsfh = null;
-    }
-    if (sdsfh != null) {
-      sdsfh.writeFiles();
-      sdsfh = null;
     }
 
     // Prepare sanitized bridge descriptor writer
