@@ -92,7 +92,7 @@ public class DirreqStatsFileHandler {
                 + "file!");
           } else {
             String[] headers = line.split(",");
-            for (int i = 2; i < headers.length - 1; i++) {
+            for (int i = 2; i < headers.length; i++) {
               if (!headers[i].equals("all")) {
                 this.countries.add(headers[i]);
               }
@@ -111,7 +111,7 @@ public class DirreqStatsFileHandler {
               String directory = parts[0];
               String date = parts[1];
               Map<String, String> obs = new HashMap<String, String>();
-              for (int i = 2; i < parts.length - 1; i++) {
+              for (int i = 2; i < parts.length; i++) {
                 if (parts[i].equals("NA")) {
                   continue;
                 }
