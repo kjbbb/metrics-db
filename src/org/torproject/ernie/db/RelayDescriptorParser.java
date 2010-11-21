@@ -147,6 +147,11 @@ public class RelayDescriptorParser {
             }
             rawStatusEntry = new StringBuilder(line + "\n");
             String[] parts = line.split(" ");
+            if (parts.length < 9) {
+              this.logger.log(Level.WARNING, "Could not parse r line '"
+                  + line + "' in descriptor. Skipping.");
+              break;
+            }
             String publishedTime = parts[4] + " " + parts[5];
             nickname = parts[1];
             relayIdentity = Hex.encodeHexString(
@@ -357,6 +362,9 @@ public class RelayDescriptorParser {
                   intervalEnd -= intervalLength * 1000L;
                 }
               } catch (NumberFormatException e) {
+                this.logger.log(Level.WARNING, "Could not parse "
+                    + line.split(" ")[0] + " line '" + line + "' in "
+                    + "descriptor. Skipping.", e);
                 break;
               }
             }
@@ -364,19 +372,26 @@ public class RelayDescriptorParser {
             date = line.split(" ")[1];
           } else if (line.startsWith("dirreq-v3-reqs ")
               && line.length() > "dirreq-v3-reqs ".length()) {
-            int allUsers = 0;
-            Map<String, String> obs = new HashMap<String, String>();
-            String[] parts = line.substring("dirreq-v3-reqs ".length()).
-                split(",");
-            for (String p : parts) {
-              String country = p.substring(0, 2);
-              int users = Integer.parseInt(p.substring(3)) - 4;
-              allUsers += users;
-              obs.put(country, "" + users);
-            }
-            obs.put("zy", "" + allUsers);
             if (this.dsfh != null) {
-              this.dsfh.addObs(dir, date, obs);
+              try {
+                int allUsers = 0;
+                Map<String, String> obs = new HashMap<String, String>();
+                String[] parts = line.substring("dirreq-v3-reqs ".
+                    length()).split(",");
+                for (String p : parts) {
+                  String country = p.substring(0, 2);
+                  int users = Integer.parseInt(p.substring(3)) - 4;
+                  allUsers += users;
+                  obs.put(country, "" + users);
+                }
+                obs.put("zy", "" + allUsers);
+                this.dsfh.addObs(dir, date, obs);
+              } catch (NumberFormatException e) {
+                this.logger.log(Level.WARNING, "Could not parse "
+                    + "dirreq-v3-reqs line '" + line + "' in descriptor. "
+                    + "Skipping.", e);
+                break;
+              }
             }
           }
         }
