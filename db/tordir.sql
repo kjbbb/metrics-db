@@ -561,10 +561,12 @@ CREATE TABLE bridge_network_size (
 -- Contains daily users by country.
 CREATE TABLE dirreq_stats (
     source CHARACTER(40) NOT NULL,
-    "date" DATE NOT NULL,
+    statsend TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    seconds INTEGER NOT NULL,
     country CHARACTER(2) NOT NULL,
     requests INTEGER NOT NULL,
-    CONSTRAINT dirreq_stats_pkey PRIMARY KEY (source, "date", country)
+    CONSTRAINT dirreq_stats_pkey
+    PRIMARY KEY (source, statsend, seconds, country)
 );
 
 -- TABLE bridge_stats

@@ -325,7 +325,8 @@ public class RelayDescriptorParser {
         String publishedTime = null, relayIdentifier = line.split(" ")[2];
         long published = -1L;
         String dir = line.split(" ")[2];
-        String date = null;
+        String statsEnd = null;
+        long seconds = -1L;
         SortedMap<String, String> bandwidthHistory =
             new TreeMap<String, String>();
         boolean skip = false;
@@ -369,7 +370,14 @@ public class RelayDescriptorParser {
               }
             }
           } else if (line.startsWith("dirreq-stats-end ")) {
-            date = line.split(" ")[1];
+            String[] parts = line.split(" ");
+            if (parts.length < 5) {
+              this.logger.warning("Could not parse dirreq-stats-end "
+                  + "line '" + line + "' in descriptor. Skipping.");
+              break;
+            }
+            statsEnd = parts[1] + " " + parts[2];
+            seconds = Long.parseLong(parts[3].substring(1));
           } else if (line.startsWith("dirreq-v3-reqs ")
               && line.length() > "dirreq-v3-reqs ".length()) {
             if (this.dsfh != null) {
@@ -385,7 +393,7 @@ public class RelayDescriptorParser {
                   obs.put(country, "" + users);
                 }
                 obs.put("zy", "" + allUsers);
-                this.dsfh.addObs(dir, date, obs);
+                this.dsfh.addObs(dir, statsEnd, seconds, obs);
               } catch (NumberFormatException e) {
                 this.logger.log(Level.WARNING, "Could not parse "
                     + "dirreq-v3-reqs line '" + line + "' in descriptor. "
