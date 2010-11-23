@@ -263,7 +263,7 @@ public class DirreqStatsFileHandler {
               + country;
           if (insertRows.containsKey(key)) {
             String insertRow = insertRows.remove(key);
-            long oldUsers = rs.getLong(4);
+            long oldUsers = rs.getLong(5);
             long newUsers = Long.parseLong(insertRow.split(",")[0]);
             if (oldUsers != newUsers) {
               updateRows.put(key, insertRow);
