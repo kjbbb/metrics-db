@@ -180,6 +180,32 @@ CREATE TABLE total_bwhist (
     CONSTRAINT total_bwhist_pkey PRIMARY KEY(date)
 );
 
+-- TABLE user_stats
+-- Aggregate statistics on directory requests and byte histories that we
+-- use to estimate user numbers.
+CREATE TABLE user_stats (
+    date DATE NOT NULL,
+    country CHARACTER(2) NOT NULL,
+    r BIGINT,
+    dw BIGINT,
+    dr BIGINT,
+    drw BIGINT,
+    drr BIGINT,
+    bw BIGINT,
+    br BIGINT,
+    bwd BIGINT,
+    brd BIGINT,
+    bwr BIGINT,
+    brr BIGINT,
+    bwdr BIGINT,
+    brdr BIGINT,
+    bwp BIGINT,
+    brp BIGINT,
+    bwn BIGINT,
+    brn BIGINT,
+    CONSTRAINT user_stats_pkey PRIMARY KEY(date, country)
+);
+
 -- TABLE relay_statuses_per_day
 -- A helper table which is commonly used to update the tables above in the
 -- refresh_* functions.
@@ -540,6 +566,175 @@ CREATE OR REPLACE FUNCTION refresh_total_bwhist() RETURNS INTEGER AS $$
     GROUP BY fingerprint, DATE(intervalend)
   ) byrelay
   GROUP BY date;
+  RETURN 1;
+  END;
+$$ LANGUAGE plpgsql;
+
+-- FUNCTION refresh_user_stats()
+-- This function refreshes our user statistics by weighting reported
+-- directory request statistics of directory mirrors with bandwidth
+-- histories.
+CREATE OR REPLACE FUNCTION refresh_user_stats() RETURNS INTEGER AS $$
+  BEGIN
+  -- Start by deleting user statistics of the dates we're about to
+  -- regenerate.
+  DELETE FROM user_stats WHERE date IN (SELECT * FROM updates);
+  -- Now insert new user statistics.
+  INSERT INTO user_stats (date, country, r, dw, dr, drw, drr, bw, br, bwd,
+      brd, bwr, brr, bwdr, brdr, bwp, brp, bwn, brn)
+  SELECT
+         -- We want to learn about total requests by date and country.
+         dirreq_stats_by_country.date AS date,
+         dirreq_stats_by_country.country AS country,
+         dirreq_stats_by_country.r AS r,
+         -- In order to weight the reported directory requests, we're
+         -- counting bytes of relays (except directory authorities)
+         -- matching certain criteria: whether or not they are reporting
+         -- directory requests, whether or not they are reporting
+         -- directory bytes, and whether their directory port is open or
+         -- closed.
+         SUM(CASE WHEN authority IS NOT NULL
+           THEN NULL ELSE dirwritten END) AS dw,
+         SUM(CASE WHEN authority IS NOT NULL
+           THEN NULL ELSE dirread END) AS dr,
+         SUM(CASE WHEN requests IS NULL OR authority IS NOT NULL
+           THEN NULL ELSE dirwritten END) AS dwr,
+         SUM(CASE WHEN requests IS NULL OR authority IS NOT NULL
+           THEN NULL ELSE dirread END) AS drr,
+         SUM(CASE WHEN authority IS NOT NULL
+           THEN NULL ELSE written END) AS bw,
+         SUM(CASE WHEN authority IS NOT NULL
+           THEN NULL ELSE read END) AS br,
+         SUM(CASE WHEN dirwritten IS NULL OR authority IS NOT NULL
+           THEN NULL ELSE written END) AS bwd,
+         SUM(CASE WHEN dirwritten IS NULL OR authority IS NOT NULL
+           THEN NULL ELSE read END) AS brd,
+         SUM(CASE WHEN requests IS NULL OR authority IS NOT NULL
+           THEN NULL ELSE written END) AS bwr,
+         SUM(CASE WHEN requests IS NULL OR authority IS NOT NULL
+           THEN NULL ELSE read END) AS brr,
+         SUM(CASE WHEN dirwritten IS NULL OR requests IS NULL
+           OR authority IS NOT NULL THEN NULL ELSE written END) AS bwdr,
+         SUM(CASE WHEN dirwritten IS NULL OR requests IS NULL
+           OR authority IS NOT NULL THEN NULL ELSE read END) AS brdr,
+         SUM(CASE WHEN opendirport IS NULL OR authority IS NOT NULL
+           THEN NULL ELSE written END) AS bwp,
+         SUM(CASE WHEN opendirport IS NULL OR authority IS NOT NULL
+           THEN NULL ELSE read END) AS brp,
+         SUM(CASE WHEN opendirport IS NOT NULL OR authority IS NOT NULL
+           THEN NULL ELSE written END) AS bwn,
+         SUM(CASE WHEN opendirport IS NOT NULL OR authority IS NOT NULL
+           THEN NULL ELSE read END) AS brn
+  FROM (
+    -- The first sub-select tells us the total number of directory
+    -- requests per country reported by all directory mirrors.
+    SELECT dirreq_stats_by_date.date AS date, country, SUM(requests) AS r
+    FROM (
+      SELECT fingerprint, date, country, SUM(requests) AS requests
+      FROM (
+        -- There are two selects here, because in most cases the directory
+        -- request statistics cover two calendar dates.
+        SELECT LOWER(source) AS fingerprint, DATE(statsend) AS date,
+          country, FLOOR(requests * (CASE
+          WHEN EXTRACT(EPOCH FROM DATE(statsend)) >
+          EXTRACT(EPOCH FROM statsend) - seconds
+          THEN EXTRACT(EPOCH FROM statsend) -
+          EXTRACT(EPOCH FROM DATE(statsend))
+          ELSE seconds END) / seconds) AS requests
+        FROM dirreq_stats
+        UNION
+        SELECT LOWER(source) AS fingerprint, DATE(statsend) - 1 AS date,
+          country, FLOOR(requests *
+          (EXTRACT(EPOCH FROM DATE(statsend)) -
+          EXTRACT(EPOCH FROM statsend) + seconds)
+          / seconds) AS requests
+        FROM dirreq_stats
+        WHERE EXTRACT(EPOCH FROM DATE(statsend)) -
+        EXTRACT(EPOCH FROM statsend) + seconds > 0
+      ) dirreq_stats_split
+      GROUP BY 1, 2, 3
+    ) dirreq_stats_by_date
+    -- We're only interested in requests by directory mirrors, not
+    -- directory authorities, so we exclude all relays with the Authority
+    -- flag.
+    RIGHT JOIN (
+      SELECT fingerprint, DATE(validafter) AS date
+      FROM statusentry
+      WHERE DATE(validafter) >= (SELECT MIN(date) FROM updates)
+      AND DATE(validafter) <= (SELECT MAX(date) FROM updates)
+      AND DATE(validafter) IN (SELECT date FROM updates)
+      AND isauthority IS FALSE
+      GROUP BY 1, 2
+    ) statusentry_dirmirrors
+    ON dirreq_stats_by_date.fingerprint =
+       statusentry_dirmirrors.fingerprint
+    AND dirreq_stats_by_date.date = statusentry_dirmirrors.date
+    GROUP BY 1, 2
+  ) dirreq_stats_by_country
+  LEFT JOIN (
+    -- In the next step, we expand the result by bandwidth histories of
+    -- all relays.
+    SELECT fingerprint,
+           DATE(intervalend) AS date,
+           SUM(read) AS read, SUM(written) AS written,
+           SUM(dirread) AS dirread, SUM(dirwritten) AS dirwritten
+    FROM (
+      SELECT DISTINCT fingerprint, intervalend,
+        read, written, dirread, dirwritten
+      FROM bwhist
+      WHERE DATE(intervalend) >= (SELECT MIN(date) FROM updates)
+      AND DATE(intervalend) <= (SELECT MAX(date) FROM updates)
+      AND DATE(intervalend) IN (SELECT date FROM updates)
+    ) distinct_bwhist
+    GROUP BY 1, 2
+  ) bwhist_by_relay
+  ON dirreq_stats_by_country.date = bwhist_by_relay.date
+  LEFT JOIN (
+    -- For each relay, tell how often it had an open directory port and
+    -- how often it had the Authority flag assigned on a given date.
+    SELECT fingerprint, DATE(validafter) AS date,
+      SUM(CASE WHEN dirport > 0 THEN 1 ELSE NULL END) AS opendirport,
+      SUM(CASE WHEN isauthority IS TRUE THEN 1 ELSE NULL END) AS authority
+    FROM statusentry
+    WHERE DATE(validafter) >= (SELECT MIN(date) FROM updates)
+    AND DATE(validafter) <= (SELECT MAX(date) FROM updates)
+    AND DATE(validafter) IN (SELECT date FROM updates)
+    GROUP BY 1, 2
+  ) statusentry_by_relay
+  ON bwhist_by_relay.fingerprint = statusentry_by_relay.fingerprint
+  AND bwhist_by_relay.date = statusentry_by_relay.date
+  LEFT JOIN (
+    -- For each relay, tell if it has reported directory request
+    -- statistics on a given date. Again, we have to take into account
+    -- that statistics intervals cover more than one calendar date in most
+    -- cases. The exact number of requests isn't relevant here, but only
+    -- whether the relay reported directory requests or not.
+    SELECT fingerprint, date, 1 AS requests
+    FROM (
+      SELECT LOWER(source) AS fingerprint, DATE(statsend) AS date
+      FROM dirreq_stats
+      WHERE DATE(statsend) >= (SELECT MIN(date) FROM updates)
+      AND DATE(statsend) <= (SELECT MAX(date) FROM updates)
+      AND DATE(statsend) IN (SELECT date FROM updates)
+      AND country = 'zy'
+      UNION
+      SELECT LOWER(source) AS fingerprint, DATE(statsend) - 1 AS date
+      FROM dirreq_stats
+      WHERE DATE(statsend) - 1 >= (SELECT MIN(date) FROM updates)
+      AND DATE(statsend) - 1 <= (SELECT MAX(date) FROM updates)
+      AND DATE(statsend) - 1 IN (SELECT date FROM updates)
+      AND country = 'zy'
+      AND EXTRACT(EPOCH FROM DATE(statsend)) -
+      EXTRACT(EPOCH FROM statsend) + seconds > 0
+    ) dirreq_stats_split
+    GROUP BY 1, 2
+  ) dirreq_stats_by_relay
+  ON bwhist_by_relay.fingerprint = dirreq_stats_by_relay.fingerprint
+  AND bwhist_by_relay.date = dirreq_stats_by_relay.date
+  WHERE dirreq_stats_by_country.country IS NOT NULL
+  -- Group by date, country, and total reported directory requests,
+  -- summing up the bandwidth histories.
+  GROUP BY 1, 2, 3;
   RETURN 1;
   END;
 $$ LANGUAGE plpgsql;
